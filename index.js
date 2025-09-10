@@ -942,20 +942,7 @@ async function handleErrorNotification(decryptedBody) {
 }
 // Add these functions to your existing Railway code
 
-async function importPrivateKey(privateKeyPem) {
-  const { webcrypto } = await import('crypto');
-  const crypto = webcrypto;
-  
-  const pemHeader = "-----BEGIN PRIVATE KEY-----";
-  const pemFooter = "-----END PRIVATE KEY-----";
-  const pemContents = privateKeyPem.replace(pemHeader, "").replace(pemFooter, "").replace(/\s/g, "");
-  const binaryDer = Uint8Array.from(Buffer.from(pemContents, 'base64'));
-  
-  return await crypto.subtle.importKey("pkcs8", binaryDer, {
-    name: "RSA-OAEP",
-    hash: "SHA-256"
-  }, false, ["decrypt"]);
-}
+
 
 async function decryptRequest(body) {
   const { webcrypto } = await import('crypto');
