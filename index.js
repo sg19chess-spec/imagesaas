@@ -1044,12 +1044,6 @@ async function sendWhatsAppTextMessage(toE164, message) {
   }
   return data;
 }
-  const data = await resp.json();
-  if (!resp.ok) {
-    throw new Error(`WhatsApp send failed ${resp.status}: ${JSON.stringify(data)}`);
-  }
-  return data;
-}
 
 // Request Handlers
 async function handleDataExchange(decryptedBody) {
