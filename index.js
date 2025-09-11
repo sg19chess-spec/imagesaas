@@ -1309,6 +1309,32 @@ async function handleFlowNavigationOnly(decryptedBody) {
       return responseData;
     }
 
+    // Handle final completion from SUCCESS_SCREEN
+    if (screen === 'SUCCESS_SCREEN') {
+      console.log('→ FINAL FLOW COMPLETION DETECTED!');
+      console.log('→ Completing Flow and triggering image generation...');
+      
+      const finalResponse = {
+        screen: "SUCCESS",
+        data: {
+          extension_message_response: {
+            params: {
+              flow_token: decryptedBody.flow_token || "image_generation_flow",
+              action: "generate_image_completed",
+              status: "processing",
+              product_category: data.product_category,
+              product_image: data.product_image,
+              scene_description: data.scene_description,
+              price_overlay: data.price_overlay
+            }
+          }
+        }
+      };
+      
+      console.log('→ Returning final completion response:', JSON.stringify(finalResponse, null, 2));
+      return finalResponse;
+    }
+
     console.log('→ No matching data_exchange pattern found');
     console.log('→ Available data keys:', Object.keys(data || {}));
     console.log('→ Staying on current screen or returning to OPTION_SELECTION');
