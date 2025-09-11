@@ -1266,26 +1266,6 @@ async function handleFlowNavigationOnly(decryptedBody) {
     console.log('→ data.product_image:', data?.product_image ? 'present' : 'missing');
     
     // Handle product info collection (be more flexible with detection)
-    if (data?.action === 'collect_info_completed' || 
-        (data?.product_category && data?.product_image)) {
-      
-      console.log('→ PRODUCT INFO DETECTED! Processing...');
-      console.log('→ Product category:', data.product_category);
-      console.log('→ Product image:', data.product_image ? 'image data present' : 'missing');
-      
-      const responseData = {
-        screen: 'COLLECT_IMAGE_SCENE',
-        data: {
-          product_image: data.product_image,
-          product_category: data.product_category,
-          error_message: ""
-        }
-      };
-      
-      console.log('→ Returning response:', JSON.stringify(responseData, null, 2));
-      return responseData;
-    }
-    
     // Handle scene info collection completion
     if (data?.action === 'scene_info_completed' || 
         (data?.scene_description !== undefined || data?.price_overlay !== undefined)) {
@@ -1306,6 +1286,27 @@ async function handleFlowNavigationOnly(decryptedBody) {
       };
       
       console.log('→ Returning success screen response:', JSON.stringify(responseData, null, 2));
+      return responseData;
+    }
+    
+    // Handle product info collection (be more flexible with detection)
+    if (data?.action === 'collect_info_completed' || 
+        (data?.product_category && data?.product_image)) {
+      
+      console.log('→ PRODUCT INFO DETECTED! Processing...');
+      console.log('→ Product category:', data.product_category);
+      console.log('→ Product image:', data.product_image ? 'image data present' : 'missing');
+      
+      const responseData = {
+        screen: 'COLLECT_IMAGE_SCENE',
+        data: {
+          product_image: data.product_image,
+          product_category: data.product_category,
+          error_message: ""
+        }
+      };
+      
+      console.log('→ Returning response:', JSON.stringify(responseData, null, 2));
       return responseData;
     }
 
