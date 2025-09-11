@@ -1007,6 +1007,14 @@ async function sendWhatsAppImageMessage(toE164, imageUrl, caption) {
       }
     })
   });
+
+  const data = await resp.json();
+  if (!resp.ok) {
+    throw new Error(`WhatsApp send failed ${resp.status}: ${JSON.stringify(data)}`);
+  }
+  return data;
+}
+
 async function sendWhatsAppTextMessage(toE164, message) {
   if (!toE164) throw new Error('Missing recipient phone number (E.164 format)');
   if (!message) throw new Error('Missing message text');
