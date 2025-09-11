@@ -1228,15 +1228,21 @@ async function sendWhatsAppTextMessage(toE164, message) {
 async function handleFlowNavigationOnly(decryptedBody) {
   const { action, screen, data } = decryptedBody;
   console.log(`Flow navigation: ${action} for screen: ${screen}`);
+  console.log('Received data:', JSON.stringify(data, null, 2));
   
   if (action === 'INIT') {
     return { screen: 'OPTION_SELECTION', data: {} };
   }
 
   if (action === 'data_exchange') {
+    console.log('Processing data_exchange action');
+    
     // Handle option selection
     if (data?.selected_option) {
+      console.log('Selected option:', data.selected_option);
+      
       if (data.selected_option === 'check_balance') {
+        console.log('Navigating to CHECK_BALANCE');
         return {
           screen: 'CHECK_BALANCE',
           data: {}
@@ -1244,11 +1250,16 @@ async function handleFlowNavigationOnly(decryptedBody) {
       }
       
       if (data.selected_option === 'generate_image') {
+        console.log('Navigating to COLLECT_INFO');
         return { screen: 'COLLECT_INFO', data: {} };
       }
+      
+      console.log('Unknown option selected:', data.selected_option);
+    } else {
+      console.log('No selected_option found in data');
     }
 
-    // NO IMAGE PROCESSING HERE - just navigation
+    console.log('Staying on OPTION_SELECTION - no valid option');
     return { screen: 'OPTION_SELECTION', data: {} };
   }
 
@@ -1259,6 +1270,7 @@ async function handleFlowNavigationOnly(decryptedBody) {
     return { screen: 'OPTION_SELECTION', data: {} };
   }
 
+  console.log('Unhandled action:', action);
   return { screen: 'OPTION_SELECTION', data: {} };
 }
 async function handleHealthCheck() {
