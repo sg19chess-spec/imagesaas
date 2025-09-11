@@ -136,44 +136,29 @@ app.post('/webhook', async (req, res) => {
   try {
     validateEnvironmentVars();
     
-    // Check if this is a BSP lead (before WhatsApp Flow processing)
-    if (req.body) {
-      const isBspLead = req.body.phoneNumber !== undefined || 
-                       req.body.firstName !== undefined || 
-                       req.body.email !== undefined ||
-                       req.body.chat_id !== undefined ||
-                       req.body.first_name !== undefined;
-      
-      const isWhatsAppFlow = req.body.encrypted_aes_key !== undefined || 
-                            req.body.encrypted_flow_data !== undefined || 
-                            req.body.initial_vector !== undefined;
-      
-      if (isBspLead && !isWhatsAppFlow) {
-        console.log('🔄 Processing BSP lead via webhook endpoint');
-        // Redirect to BSP lead handler
-        return await handleBspLeadDirect(req, res);
-      }
-    }
-    
     const requestBody = req.body;
-    const privateKeyPem = process.env.PRIVATE_KEY;
-    const privateKey = await importPrivateKey(privateKeyPem);
-
-    const { decryptedBody, aesKeyBuffer, initialVectorBuffer } = await decryptRequest(requestBody, privateKey);
-
-    let responsePayload;
-    if (decryptedBody.action === 'ping') {
-      responsePayload = await handleHealthCheck();
-    } else if (decryptedBody.action === 'error_notification') {
-      responsePayload = await handleErrorNotification(decryptedBody);
-    } else {
-      responsePayload = await handleDataExchange(decryptedBody);
-    }
-
-    const encryptedResponse = await encryptResponse(responsePayload, aesKeyBuffer, initialVectorBuffer);
     
-    res.setHeader('Content-Type', 'application/json');
-    return res.status(200).send(encryptedResponse);
+    // Check if this is a Flow completion message (NOT encrypted Flow data exchange)
+    if (requestBody.entry && requestBody.entry[0]?.changes && requestBody.entry[0].changes[0]?.value?.messages) {
+      console.log('=== PROCESSING WHATSAPP MESSAGE WEBHOOK (FLOW COMPLETION) ===');
+      return await handleWhatsAppMessage(requestBody, res);
+    }
+    
+    // Check if this is encrypted Flow data exchange
+    if (requestBody.encrypted_aes_key && requestBody.encrypted_flow_data) {
+      console.log('=== PROCESSING ENCRYPTED FLOW DATA EXCHANGE (NAVIGATION ONLY) ===');
+      return await handleEncryptedFlowDataExchange(requestBody, res);
+    }
+    
+    // Check if this is a BSP lead (no encryption)
+    if (requestBody.phoneNumber || requestBody.firstName || requestBody.chat_id) {
+      console.log('=== PROCESSING BSP LEAD ===');
+      return await handleBspLeadDirect(req, res);
+    }
+    
+    console.log('Unknown webhook payload type:', JSON.stringify(requestBody, null, 2));
+    return res.status(200).json({ status: 'received' });
+    
   } catch (error) {
     console.error('Error processing webhook request:', error);
     return res.status(500).json({ error: `Internal Server Error: ${error.message}` });
@@ -502,7 +487,201 @@ async function handleBspLeadDirect(req, res) {
     });
   }
 }
+// Handle WhatsApp message webhook
+async function handleWhatsAppMessage(requestBody, res) {
+  try {
+    const messages = requestBody.entry[0]?.changes[0]?.value?.messages || [];
+    
+    for (const message of messages) {
+      console.log('=== WHATSAPP MESSAGE RECEIVED ===');
+      console.log('Message type:', message.type);
+      console.log('From:', message.from);
+      
+      // Check if this is a Flow completion message
+      if (message.type === 'interactive' && message.interactive?.type === 'nfm_reply') {
+        await handleFlowCompletion(message);
+      } else {
+        console.log('Regular message received:', message.type);
+      }
+    }
+    
+    return res.status(200).json({ status: 'received' });
+    
+  } catch (error) {
+    console.error('Error handling WhatsApp message:', error);
+    return res.status(500).json({ error: error.message });
+  }
+}
 
+// Handle Flow completion
+async function handleFlowCompletion(message) {
+  console.log('=== FLOW COMPLETION DETECTED ===');
+  
+  try {
+    // Extract user phone number from message (100% reliable)
+    const userPhone = message.from;
+    console.log('✅ Flow completed by user:', userPhone);
+    
+    // Parse the Flow response data
+    const nfmReply = message.interactive.nfm_reply;
+    const responseJson = JSON.parse(nfmReply.response_json);
+    
+    console.log('Flow response data:', JSON.stringify(responseJson, null, 2));
+    
+    // Extract Flow data
+    const {
+      status,
+      product_category,
+      scene_description,
+      price_overlay,
+      product_image,
+      action
+    } = responseJson;
+    
+    // Handle different completion types
+    // Handle different completion types
+if (action === 'check_balance_completed') {
+  const credits = await checkUserCredits(userPhone);
+  const balanceMessage = `💰 Your Current Balance: ${credits} credits\n\nEach image generation costs 1 credit. Contact support to recharge when needed.`;
+  await sendWhatsAppTextMessage(userPhone, balanceMessage);
+  console.log('✅ Balance check completed for:', userPhone);
+  return;
+}
+    
+    if (action === 'insufficient_credits') {
+      console.log('Insufficient credits flow completed for:', userPhone);
+      return; // No further processing needed
+    }
+    
+    // Handle image generation completion
+    if (status === 'processing' && product_image && product_category) {
+      console.log('=== PROCESSING IMAGE GENERATION FROM FLOW COMPLETION ===');
+      
+      // Check user credits
+      const credits = await checkUserCredits(userPhone);
+      if (credits < 1) {
+        await sendWhatsAppTextMessage(userPhone, 
+          `❌ Insufficient credits. You have ${credits} credits. Each image generation requires 1 credit.`);
+        return;
+      }
+      
+      // Process the image
+      await generateImageFromFlowCompletion(
+        userPhone,
+        product_image,
+        product_category,
+        scene_description,
+        price_overlay
+      );
+    }
+    
+  } catch (error) {
+    console.error('❌ Error processing Flow completion:', error);
+    
+    if (message.from) {
+      try {
+        await sendWhatsAppTextMessage(message.from, 
+          "❌ An error occurred processing your request. Please try again.");
+      } catch (sendError) {
+        console.error('Failed to send error message:', sendError);
+      }
+    }
+  }
+}
+
+// Generate image from Flow completion
+async function generateImageFromFlowCompletion(userPhone, productImageData, productCategory, sceneDescription = null, priceOverlay = null) {
+  console.log('=== GENERATING IMAGE FROM FLOW COMPLETION ===');
+  console.log('User Phone:', userPhone);
+  console.log('Product Category:', productCategory);
+  
+  try {
+    // Process the product image data
+    let actualImageData;
+    
+    if (Array.isArray(productImageData) && productImageData.length > 0) {
+      const firstImage = productImageData[0];
+      
+      if (firstImage.encryption_metadata) {
+        actualImageData = await decryptWhatsAppImage(firstImage);
+      } else if (firstImage.cdn_url) {
+        const response = await fetch(firstImage.cdn_url);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch image: ${response.status}`);
+        }
+        const arrayBuffer = await response.arrayBuffer();
+        actualImageData = Buffer.from(arrayBuffer).toString('base64');
+      } else {
+        throw new Error('Invalid image format');
+      }
+    } else if (typeof productImageData === 'string') {
+      actualImageData = productImageData;
+    } else {
+      throw new Error('Invalid product_image format');
+    }
+    
+    // Generate the enhanced image
+    const imageUrl = await generateImageFromAi(
+      actualImageData,
+      productCategory,
+      sceneDescription,
+      priceOverlay
+    );
+    
+    // Get user info for personalized message
+    const leadInfo = getBspLead(userPhone) || { firstName: null };
+    const caption = createImageCaption(productCategory, priceOverlay, leadInfo);
+    
+    // Send the image
+    await sendWhatsAppImageMessage(userPhone, imageUrl, caption);
+    
+    // Deduct credit and send balance update
+    const deductionResult = await deductUserCredits(userPhone, 1);
+    if (deductionResult.success) {
+      const balanceMessage = `✅ Image generated successfully!\n\n💰 1 credit used. Remaining balance: ${deductionResult.newBalance} credits`;
+      await sendWhatsAppTextMessage(userPhone, balanceMessage);
+    }
+    
+    console.log('✅ Image generation and delivery completed for:', userPhone);
+    
+  } catch (error) {
+    console.error('❌ Image generation failed:', error);
+    await sendWhatsAppTextMessage(userPhone, 
+      "❌ Image generation failed. Please try again. Your credits have not been deducted.");
+  }
+}
+
+// Handle encrypted Flow data exchange
+async function handleEncryptedFlowDataExchange(requestBody, res) {
+  console.log('=== HANDLING ENCRYPTED FLOW DATA EXCHANGE (NAVIGATION ONLY) ===');
+  
+  try {
+    const privateKeyPem = process.env.PRIVATE_KEY;
+    const privateKey = await importPrivateKey(privateKeyPem);
+
+    const { decryptedBody, aesKeyBuffer, initialVectorBuffer } = await decryptRequest(requestBody, privateKey);
+
+    let responsePayload;
+    
+    if (decryptedBody.action === 'ping') {
+      responsePayload = await handleHealthCheck();
+    } else if (decryptedBody.action === 'error_notification') {
+      responsePayload = await handleErrorNotification(decryptedBody);
+    } else {
+      // Handle Flow interactions (NO image generation here)
+      responsePayload = await handleFlowNavigationOnly(decryptedBody);
+    }
+
+    const encryptedResponse = await encryptResponse(responsePayload, aesKeyBuffer, initialVectorBuffer);
+    
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(200).send(encryptedResponse);
+    
+  } catch (error) {
+    console.error('Error processing encrypted Flow data exchange:', error);
+    return res.status(500).json({ error: `Internal Server Error: ${error.message}` });
+  }
+}
 // Enhanced WhatsApp Phone Number Detection
 function getUserPhoneFromPayload(decryptedBody) {
   console.log('=== PHONE NUMBER DETECTION ===');
@@ -1046,192 +1225,42 @@ async function sendWhatsAppTextMessage(toE164, message) {
 }
 
 // Request Handlers
-async function handleDataExchange(decryptedBody) {
+async function handleFlowNavigationOnly(decryptedBody) {
   const { action, screen, data } = decryptedBody;
-  console.log(`Processing action: ${action} for screen: ${screen}`);
-  console.log('Data received:', JSON.stringify(data, null, 2));
-
+  console.log(`Flow navigation: ${action} for screen: ${screen}`);
+  
   if (action === 'INIT') {
-  return { screen: 'OPTION_SELECTION', data: {} };
-}
+    return { screen: 'OPTION_SELECTION', data: {} };
+  }
 
   if (action === 'data_exchange') {
-  console.log('=== DATA EXCHANGE ACTION ===');
-
-  // Handle option selection from main menu
-  if (data?.selected_option) {
-    const userPhone = getUserPhoneFromPayload(decryptedBody);
-    
-    if (data.selected_option === 'check_balance') {
-  const credits = await checkUserCredits(userPhone || 'unknown');
-  
-  // Send balance via WhatsApp message instead of showing in Flow
-  if (userPhone) {
-    try {
-      const balanceMessage = `💰 Your Current Balance: ${credits} credits\n\nEach image generation costs 1 credit. Contact support to recharge when needed.`;
-      await sendWhatsAppTextMessage(userPhone, balanceMessage);
-      console.log('✅ Balance message sent via WhatsApp');
-    } catch (error) {
-      console.error('❌ Failed to send balance message:', error);
-    }
-  }
-  
-  // Return a simple completion screen
-  return {
-    screen: 'CHECK_BALANCE',
-    data: { current_credits: "Balance sent to your WhatsApp!" }
-  };
-}
-    
-    if (data.selected_option === 'generate_image') {
-      // Check if user has credits before starting
-      if (userPhone) {
-        const credits = await checkUserCredits(userPhone);
-        if (credits < 1) {
-          return {
-            screen: 'INSUFFICIENT_CREDITS',
-            data: { current_credits: credits.toString() }
-          };
-        }
-      }
-      
-      return { screen: 'COLLECT_INFO', data: {} };
-    }
-  }
-
-  // Handle image generation flow
-  if (data && typeof data === 'object') {
-    const { scene_description, price_overlay, product_image, product_category } = data;
-
-    console.log('=== FIELD VALIDATION ===');
-    console.log('product_image:', product_image ? 'present' : 'MISSING (REQUIRED)');
-    console.log('product_category:', product_category ? `"${product_category}"` : 'MISSING (REQUIRED)');
-    console.log('scene_description:', scene_description ? `"${scene_description}"` : 'not provided (optional)');
-    console.log('price_overlay:', price_overlay ? `"${price_overlay}"` : 'not provided (optional)');
-
-    if (!product_image) {
-      return {
-        screen: 'COLLECT_IMAGE_SCENE',
-        data: { error_message: "Product image is required. Please upload an image of your product." }
-      };
-    }
-
-    if (!product_category || !product_category.trim()) {
-      return {
-        screen: 'COLLECT_INFO',
-        data: { error_message: "Product category is required. Please specify what type of product this is." }
-      };
-    }
-
-    // Check credits before processing
-    const userPhone = getUserPhoneFromPayload(decryptedBody);
-    if (userPhone) {
-      const credits = await checkUserCredits(userPhone);
-      if (credits < 1) {
+    // Handle option selection
+    if (data?.selected_option) {
+      if (data.selected_option === 'check_balance') {
         return {
-          screen: 'INSUFFICIENT_CREDITS',
-          data: { current_credits: credits.toString() }
+          screen: 'CHECK_BALANCE',
+          data: {}
         };
       }
-    }
-
-    let actualImageData;
-    try {
-      console.log('=== IMAGE PROCESSING ===');
       
-      if (Array.isArray(product_image) && product_image.length > 0) {
-        console.log('Processing WhatsApp image array');
-        const firstImage = product_image[0];
-        
-        if (firstImage.encryption_metadata) {
-          console.log('Decrypting WhatsApp encrypted image...');
-          actualImageData = await decryptWhatsAppImage(firstImage);
-        } else if (firstImage.cdn_url) {
-          console.log('Fetching unencrypted image from CDN...');
-          const response = await fetch(firstImage.cdn_url);
-          if (!response.ok) {
-            throw new Error(`Failed to fetch image: ${response.status}`);
-          }
-          const arrayBuffer = await response.arrayBuffer();
-          actualImageData = Buffer.from(arrayBuffer).toString('base64');
-        } else {
-          throw new Error('Invalid image format: no cdn_url or encryption_metadata found');
-        }
-      } else if (typeof product_image === 'string') {
-        console.log('Processing direct base64 string...');
-        actualImageData = product_image;
-      } else {
-        throw new Error('Invalid product_image format: expected array or string');
+      if (data.selected_option === 'generate_image') {
+        return { screen: 'COLLECT_INFO', data: {} };
       }
-      
-      console.log('✅ Image processing successful');
-      
-    } catch (imageError) {
-      console.error('❌ Image processing failed:', imageError);
-      return {
-        screen: 'COLLECT_IMAGE_SCENE',
-        data: { error_message: `Failed to process image: ${imageError.message}. Please try uploading the image again.` }
-      };
     }
 
-    console.log('🚀 Showing success screen first, then processing in background...');
-
-    // Process in background without awaiting
-    generateImageAndSendToUser(
-      decryptedBody,
-      actualImageData,
-      product_category.trim(),
-      scene_description && scene_description.trim() ? scene_description.trim() : null,
-      price_overlay && price_overlay.trim() ? price_overlay.trim() : null
-    ).then(async (imageUrl) => {
-  console.log('✅ Background image generation completed:', imageUrl);
-  
-  // Deduct credit after successful generation
-  if (userPhone) {
-    const deductionResult = await deductUserCredits(userPhone, 1);
-    if (deductionResult.success) {
-      console.log('💰 Credit deducted successfully. New balance:', deductionResult.newBalance);
-      
-      // Send updated balance via WhatsApp
-      try {
-        const balanceUpdateMessage = `✅ Image generated successfully! 1 credit used.\n\n💰 Your remaining balance: ${deductionResult.newBalance} credits`;
-        await sendWhatsAppTextMessage(userPhone, balanceUpdateMessage);
-        console.log('✅ Balance update message sent via WhatsApp');
-      } catch (error) {
-        console.error('❌ Failed to send balance update message:', error);
-      }
-    } else {
-      console.error('❌ Failed to deduct credit:', deductionResult.error);
-    }
+    // NO IMAGE PROCESSING HERE - just navigation
+    return { screen: 'OPTION_SELECTION', data: {} };
   }
-}).catch((error) => {
-      console.error('❌ Background image generation failed:', error);
-    });
-
-    // Return success screen immediately
-    return { 
-      screen: 'SUCCESS_SCREEN', 
-      data: { 
-        message: "Your enhanced product image is being generated and will be sent to you shortly!",
-        remaining_credits: "Check balance to see updated credits"
-      } 
-    };
-  } else {
-    return { screen: 'OPTION_SELECTION', data: { error_message: 'No data received. Please try again.' } };
-  }
-}
 
   if (action === 'BACK') {
     if (screen === 'COLLECT_IMAGE_SCENE') {
       return { screen: 'COLLECT_INFO', data: {} };
     }
-    return { screen: 'COLLECT_INFO', data: {} };
+    return { screen: 'OPTION_SELECTION', data: {} };
   }
 
-  console.log(`Unhandled action/screen combination: ${action}/${screen}`);
-  return { screen: 'COLLECT_INFO', data: { error_message: 'An unexpected error occurred.' } };
+  return { screen: 'OPTION_SELECTION', data: {} };
 }
-
 async function handleHealthCheck() {
   return { data: { status: 'active' } };
 }
