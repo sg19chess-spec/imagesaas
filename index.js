@@ -1253,13 +1253,48 @@ async function handleFlowNavigationOnly(decryptedBody) {
         console.log('Navigating to COLLECT_INFO');
         return { screen: 'COLLECT_INFO', data: {} };
       }
+    }
+    
+    // Handle product info collection completion
+    if (data?.action === 'collect_info_completed') {
+      console.log('Product info collected, navigating to scene collection');
+      console.log('Passing data:', {
+        product_image: data.product_image ? 'image data present' : 'missing',
+        product_category: data.product_category
+      });
       
-      console.log('Unknown option selected:', data.selected_option);
-    } else {
-      console.log('No selected_option found in data');
+      return {
+        screen: 'COLLECT_IMAGE_SCENE',
+        data: {
+          product_image: data.product_image,
+          product_category: data.product_category
+        }
+      };
+    }
+    
+    // Handle scene info collection completion
+    if (data?.action === 'scene_info_completed') {
+      console.log('Scene info collected, navigating to success screen');
+      console.log('Final data for success screen:', {
+        product_image: data.product_image ? 'image data present' : 'missing',
+        product_category: data.product_category,
+        scene_description: data.scene_description,
+        price_overlay: data.price_overlay
+      });
+      
+      return {
+        screen: 'SUCCESS_SCREEN',
+        data: {
+          product_image: data.product_image,
+          product_category: data.product_category,
+          scene_description: data.scene_description,
+          price_overlay: data.price_overlay,
+          message: "Your enhanced product image is being generated!"
+        }
+      };
     }
 
-    console.log('Staying on OPTION_SELECTION - no valid option');
+    console.log('No matching data_exchange action found');
     return { screen: 'OPTION_SELECTION', data: {} };
   }
 
