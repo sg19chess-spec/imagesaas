@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { createHash, createHmac, createDecipheriv, createCipheriv, randomBytes } from 'crypto';
+import { createClient } from '@supabase/supabase-js';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
 const app = express();
@@ -15,6 +16,10 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const WHATSAPP_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
 const WHATSAPP_API_VERSION = process.env.WHATSAPP_API_VERSION || 'v23.0';
+// Supabase configuration
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // --- BSP Lead Storage ---
 // Simple in-memory storage for BSP leads (resets on server restart)
@@ -82,27 +87,34 @@ app.post('/bsp-lead', async (req, res) => {
     console.log('Postback ID:', leadData.postbackId);
     
     if (leadData.phoneNumber) {
-      console.log('✅ LEAD CAPTURED SUCCESSFULLY');
-      
-      const storedLead = storeBspLead(leadData);
-      await persistBspLead(storedLead);
-      
-      return res.status(200).json({
-        success: true,
-        message: 'Lead received and processed',
-        data: {
-          id: storedLead.id,
-          phoneNumber: storedLead.phoneNumber,
-          firstName: storedLead.firstName,
-          email: storedLead.email,
-          chatId: storedLead.chatId,
-          subscriberId: storedLead.subscriberId,
-          userMessage: storedLead.userMessage,
-          stored: true
-        },
-        timestamp: storedLead.timestamp
-      });
-    } else {
+  console.log('✅ LEAD CAPTURED SUCCESSFULLY');
+  
+  const storedLead = storeBspLead(leadData);
+  const supabaseResult = await persistBspLead(storedLead);
+  
+  return res.status(200).json({
+    success: true,
+    message: 'Lead received and processed',
+    data: {
+      id: storedLead.id,
+      phoneNumber: storedLead.phoneNumber,
+      firstName: storedLead.firstName,
+      email: storedLead.email,
+      chatId: storedLead.chatId,
+      subscriberId: storedLead.subscriberId,
+      userMessage: storedLead.userMessage,
+      stored: true,
+      // Add Supabase info
+      supabase: {
+        isNewLead: supabaseResult.isNew,
+        walletCredits: supabaseResult.lead?.wallet || 0,
+        creditsAdded: supabaseResult.walletAdded,
+        supabaseId: supabaseResult.lead?.id || null
+      }
+    },
+    timestamp: storedLead.timestamp
+  });
+} else {
       console.log('❌ No phone number provided');
       return res.status(400).json({
         success: false,
@@ -258,15 +270,163 @@ function getBspLead(identifier = 'latest') {
   
   return null;
 }
-
-// Optional: Persist to database (implement based on your needs)
-async function persistBspLead(leadData) {
+// Supabase lead management functions
+async function storeLeadInSupabase(leadData) {
   try {
-    console.log('💾 BSP lead persistence ready (implement your preferred method)');
+    const phoneNumber = leadData.phoneNumber || leadData.chat_id;
+    const firstName = leadData.firstName || leadData.first_name || '';
+    
+    if (!phoneNumber) {
+      throw new Error('Phone number is required');
+    }
+
+    // Normalize phone number (remove non-digits and ensure consistent format)
+    const normalizedPhone = phoneNumber.replace(/\D/g, '');
+    
+    console.log('🔍 Checking if lead exists in Supabase:', normalizedPhone);
+    
+    // Check if lead already exists
+    const { data: existingLead, error: selectError } = await supabase
+      .from('leads')
+      .select('*')
+      .eq('number', normalizedPhone)
+      .single();
+    
+    if (selectError && selectError.code !== 'PGRST116') { // PGRST116 = no rows found
+      throw selectError;
+    }
+    
+    if (existingLead) {
+      console.log('📋 Lead already exists:', {
+        id: existingLead.id,
+        name: existingLead.name,
+        number: existingLead.number,
+        wallet: existingLead.wallet
+      });
+      
+      // Update name if it's empty and we have a new name
+      if (!existingLead.name && firstName) {
+        const { error: updateError } = await supabase
+          .from('leads')
+          .update({ name: firstName })
+          .eq('id', existingLead.id);
+          
+        if (updateError) {
+          console.error('Failed to update lead name:', updateError);
+        } else {
+          console.log('✅ Updated lead name:', firstName);
+        }
+      }
+      
+      return {
+        isNew: false,
+        lead: existingLead,
+        walletAdded: 0
+      };
+    }
+    
+    // Create new lead with 3 credits
+    console.log('➕ Creating new lead with 3 credits');
+    const { data: newLead, error: insertError } = await supabase
+      .from('leads')
+      .insert({
+        name: firstName,
+        number: normalizedPhone,
+        wallet: 3
+      })
+      .select()
+      .single();
+    
+    if (insertError) {
+      throw insertError;
+    }
+    
+    console.log('✅ New lead created successfully:', {
+      id: newLead.id,
+      name: newLead.name,
+      number: newLead.number,
+      wallet: newLead.wallet
+    });
+    
+    return {
+      isNew: true,
+      lead: newLead,
+      walletAdded: 3
+    };
+    
+  } catch (error) {
+    console.error('❌ Error storing lead in Supabase:', error);
+    throw error;
+  }
+}
+
+async function getLeadWallet(phoneNumber) {
+  try {
+    const normalizedPhone = phoneNumber.replace(/\D/g, '');
+    
+    const { data: lead, error } = await supabase
+      .from('leads')
+      .select('wallet')
+      .eq('number', normalizedPhone)
+      .single();
+    
+    if (error) {
+      if (error.code === 'PGRST116') { // No rows found
+        return 0;
+      }
+      throw error;
+    }
+    
+    return lead?.wallet || 0;
+  } catch (error) {
+    console.error('Error fetching lead wallet:', error);
+    return 0;
+  }
+}
+
+async function updateLeadWallet(phoneNumber, newBalance) {
+  try {
+    const normalizedPhone = phoneNumber.replace(/\D/g, '');
+    
+    const { error } = await supabase
+      .from('leads')
+      .update({ wallet: newBalance })
+      .eq('number', normalizedPhone);
+    
+    if (error) {
+      throw error;
+    }
+    
+    console.log(`✅ Wallet updated for ${normalizedPhone}: ${newBalance} credits`);
     return true;
   } catch (error) {
-    console.error('Failed to persist BSP lead:', error);
+    console.error('Error updating lead wallet:', error);
     return false;
+  }
+}
+// Optional: Persist to database (implement based on your needs)
+// Persist BSP lead to Supabase
+async function persistBspLead(leadData) {
+  try {
+    console.log('💾 Persisting BSP lead to Supabase...');
+    
+    const result = await storeLeadInSupabase(leadData);
+    
+    if (result.isNew) {
+      console.log('🎉 New lead! 3 credits added to wallet');
+    } else {
+      console.log('👤 Returning lead - no credits added');
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('Failed to persist BSP lead:', error);
+    return {
+      isNew: false,
+      lead: null,
+      walletAdded: 0,
+      error: error.message
+    };
   }
 }
 
