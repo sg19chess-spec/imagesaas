@@ -1007,7 +1007,35 @@ async function sendWhatsAppImageMessage(toE164, imageUrl, caption) {
       }
     })
   });
+async function sendWhatsAppTextMessage(toE164, message) {
+  if (!toE164) throw new Error('Missing recipient phone number (E.164 format)');
+  if (!message) throw new Error('Missing message text');
 
+  const url = `https://graph.facebook.com/${WHATSAPP_API_VERSION}/${WHATSAPP_PHONE_NUMBER_ID}/messages`;
+
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to: toE164,
+      type: 'text',
+      text: {
+        body: message
+      }
+    })
+  });
+
+  const data = await resp.json();
+  if (!resp.ok) {
+    throw new Error(`WhatsApp send failed ${resp.status}: ${JSON.stringify(data)}`);
+  }
+  return data;
+}
   const data = await resp.json();
   if (!resp.ok) {
     throw new Error(`WhatsApp send failed ${resp.status}: ${JSON.stringify(data)}`);
@@ -1033,12 +1061,25 @@ async function handleDataExchange(decryptedBody) {
     const userPhone = getUserPhoneFromPayload(decryptedBody);
     
     if (data.selected_option === 'check_balance') {
-      const credits = await checkUserCredits(userPhone || 'unknown');
-      return {
-        screen: 'CHECK_BALANCE',
-        data: { current_credits: credits.toString() }
-      };
+  const credits = await checkUserCredits(userPhone || 'unknown');
+  
+  // Send balance via WhatsApp message instead of showing in Flow
+  if (userPhone) {
+    try {
+      const balanceMessage = `💰 Your Current Balance: ${credits} credits\n\nEach image generation costs 1 credit. Contact support to recharge when needed.`;
+      await sendWhatsAppTextMessage(userPhone, balanceMessage);
+      console.log('✅ Balance message sent via WhatsApp');
+    } catch (error) {
+      console.error('❌ Failed to send balance message:', error);
     }
+  }
+  
+  // Return a simple completion screen
+  return {
+    screen: 'CHECK_BALANCE',
+    data: { current_credits: "Balance sent to your WhatsApp!" }
+  };
+}
     
     if (data.selected_option === 'generate_image') {
       // Check if user has credits before starting
@@ -1141,18 +1182,27 @@ async function handleDataExchange(decryptedBody) {
       scene_description && scene_description.trim() ? scene_description.trim() : null,
       price_overlay && price_overlay.trim() ? price_overlay.trim() : null
     ).then(async (imageUrl) => {
-      console.log('✅ Background image generation completed:', imageUrl);
+  console.log('✅ Background image generation completed:', imageUrl);
+  
+  // Deduct credit after successful generation
+  if (userPhone) {
+    const deductionResult = await deductUserCredits(userPhone, 1);
+    if (deductionResult.success) {
+      console.log('💰 Credit deducted successfully. New balance:', deductionResult.newBalance);
       
-      // Deduct credit after successful generation
-      if (userPhone) {
-        const deductionResult = await deductUserCredits(userPhone, 1);
-        if (deductionResult.success) {
-          console.log('💰 Credit deducted successfully. New balance:', deductionResult.newBalance);
-        } else {
-          console.error('❌ Failed to deduct credit:', deductionResult.error);
-        }
+      // Send updated balance via WhatsApp
+      try {
+        const balanceUpdateMessage = `✅ Image generated successfully! 1 credit used.\n\n💰 Your remaining balance: ${deductionResult.newBalance} credits`;
+        await sendWhatsAppTextMessage(userPhone, balanceUpdateMessage);
+        console.log('✅ Balance update message sent via WhatsApp');
+      } catch (error) {
+        console.error('❌ Failed to send balance update message:', error);
       }
-    }).catch((error) => {
+    } else {
+      console.error('❌ Failed to deduct credit:', deductionResult.error);
+    }
+  }
+}).catch((error) => {
       console.error('❌ Background image generation failed:', error);
     });
 
