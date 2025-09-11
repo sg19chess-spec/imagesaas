@@ -1225,64 +1225,76 @@ async function sendWhatsAppTextMessage(toE164, message) {
 }
 
 // Request Handlers
+// Replace your handleFlowNavigationOnly function with this debug version
 async function handleFlowNavigationOnly(decryptedBody) {
   const { action, screen, data } = decryptedBody;
-  console.log(`Flow navigation: ${action} for screen: ${screen}`);
-  console.log('Received data:', JSON.stringify(data, null, 2));
+  
+  console.log('=== DETAILED FLOW DEBUG ===');
+  console.log('Action:', action);
+  console.log('Screen:', screen);
+  console.log('Full decryptedBody:', JSON.stringify(decryptedBody, null, 2));
+  console.log('Data object:', JSON.stringify(data, null, 2));
+  console.log('Data keys:', Object.keys(data || {}));
   
   if (action === 'INIT') {
+    console.log('→ Returning OPTION_SELECTION for INIT');
     return { screen: 'OPTION_SELECTION', data: {} };
   }
 
   if (action === 'data_exchange') {
-    console.log('Processing data_exchange action');
+    console.log('→ Processing data_exchange action');
     
     // Handle option selection
     if (data?.selected_option) {
-      console.log('Selected option:', data.selected_option);
+      console.log('→ Found selected_option:', data.selected_option);
       
       if (data.selected_option === 'check_balance') {
-        console.log('Navigating to CHECK_BALANCE');
-        return {
-          screen: 'CHECK_BALANCE',
-          data: {}
-        };
+        console.log('→ Navigating to CHECK_BALANCE');
+        return { screen: 'CHECK_BALANCE', data: {} };
       }
       
       if (data.selected_option === 'generate_image') {
-        console.log('Navigating to COLLECT_INFO');
+        console.log('→ Navigating to COLLECT_INFO');
         return { screen: 'COLLECT_INFO', data: {} };
       }
     }
     
-    // Handle product info collection completion
-    if (data?.action === 'collect_info_completed') {
-      console.log('Product info collected, navigating to scene collection');
-      console.log('Passing data:', {
-        product_image: data.product_image ? 'image data present' : 'missing',
-        product_category: data.product_category
-      });
+    // Debug: Check all possible ways the product info could be passed
+    console.log('→ Checking for product info submission...');
+    console.log('→ data.action:', data?.action);
+    console.log('→ data.product_category:', data?.product_category);
+    console.log('→ data.product_image:', data?.product_image ? 'present' : 'missing');
+    
+    // Handle product info collection (be more flexible with detection)
+    if (data?.action === 'collect_info_completed' || 
+        (data?.product_category && data?.product_image)) {
       
-      return {
+      console.log('→ PRODUCT INFO DETECTED! Processing...');
+      console.log('→ Product category:', data.product_category);
+      console.log('→ Product image:', data.product_image ? 'image data present' : 'missing');
+      
+      const responseData = {
         screen: 'COLLECT_IMAGE_SCENE',
         data: {
           product_image: data.product_image,
-          product_category: data.product_category
+          product_category: data.product_category,
+          error_message: ""
         }
       };
+      
+      console.log('→ Returning response:', JSON.stringify(responseData, null, 2));
+      return responseData;
     }
     
     // Handle scene info collection completion
-    if (data?.action === 'scene_info_completed') {
-      console.log('Scene info collected, navigating to success screen');
-      console.log('Final data for success screen:', {
-        product_image: data.product_image ? 'image data present' : 'missing',
-        product_category: data.product_category,
-        scene_description: data.scene_description,
-        price_overlay: data.price_overlay
-      });
+    if (data?.action === 'scene_info_completed' || 
+        (data?.scene_description !== undefined || data?.price_overlay !== undefined)) {
       
-      return {
+      console.log('→ SCENE INFO DETECTED! Processing...');
+      console.log('→ Scene description:', data.scene_description);
+      console.log('→ Price overlay:', data.price_overlay);
+      
+      const responseData = {
         screen: 'SUCCESS_SCREEN',
         data: {
           product_image: data.product_image,
@@ -1292,20 +1304,26 @@ async function handleFlowNavigationOnly(decryptedBody) {
           message: "Your enhanced product image is being generated!"
         }
       };
+      
+      console.log('→ Returning success screen response:', JSON.stringify(responseData, null, 2));
+      return responseData;
     }
 
-    console.log('No matching data_exchange action found');
+    console.log('→ No matching data_exchange pattern found');
+    console.log('→ Available data keys:', Object.keys(data || {}));
+    console.log('→ Staying on current screen or returning to OPTION_SELECTION');
     return { screen: 'OPTION_SELECTION', data: {} };
   }
 
   if (action === 'BACK') {
+    console.log('→ Processing BACK action');
     if (screen === 'COLLECT_IMAGE_SCENE') {
       return { screen: 'COLLECT_INFO', data: {} };
     }
     return { screen: 'OPTION_SELECTION', data: {} };
   }
 
-  console.log('Unhandled action:', action);
+  console.log('→ Unhandled action:', action);
   return { screen: 'OPTION_SELECTION', data: {} };
 }
 async function handleHealthCheck() {
