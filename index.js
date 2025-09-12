@@ -86,31 +86,57 @@ app.post('/bsp-lead', async (req, res) => {
     console.log('User Message:', leadData.userMessage);
     console.log('Postback ID:', leadData.postbackId);
     
-    if (leadData.phoneNumber) {
+    // Replace the existing flow sending logic in your BSP lead handler with this:
+
+if (leadData.phoneNumber) {
   console.log('✅ LEAD CAPTURED SUCCESSFULLY');
   
   const storedLead = storeBspLead(leadData);
   const supabaseResult = await persistBspLead(storedLead);
   
-  // Send Flow message with user phone embedded
-  if (leadData.userMessage && leadData.userMessage.toLowerCase().includes('aibot')) {
-    console.log('🚀 Sending Flow message to user with embedded phone number');
-    try {
-      const flowId = process.env.WHATSAPP_FLOW_ID; // Your Flow ID from Meta Dashboard
-      const flowToken = `flow_${Date.now()}_${leadData.phoneNumber}`;
-      
-      await sendWhatsAppFlowMessage(
-        leadData.phoneNumber, 
-        flowId, 
-        flowToken, 
-        leadData.firstName
-      );
-      console.log('✅ Flow message sent successfully');
-    } catch (flowError) {
-      console.error('❌ Failed to send Flow message:', flowError);
-    }
+  // Send Flow message with user phone embedded - ALWAYS send for new leads
+  console.log('🚀 Attempting to send Flow message to user with embedded phone number');
+  console.log('User Message:', leadData.userMessage);
+  console.log('Flow ID from env:', process.env.WHATSAPP_FLOW_ID);
+  
+  // Update this part in your BSP lead handler:
+
+try {
+  const flowId = process.env.WHATSAPP_FLOW_ID;
+  
+  if (!flowId) {
+    throw new Error('WHATSAPP_FLOW_ID environment variable is not set');
   }
   
+  console.log('Sending Flow with parameters:', {
+    phone: leadData.phoneNumber,
+    flowId: flowId,
+    firstName: leadData.firstName
+  });
+  
+  const flowResponse = await sendWhatsAppFlowMessage(
+    leadData.phoneNumber, 
+    flowId, 
+    leadData.firstName  // Removed flowToken parameter
+  );
+  
+  console.log('✅ Flow message sent successfully:', JSON.stringify(flowResponse, null, 2));
+} catch (flowError) {
+  console.error('❌ Failed to send Flow message:', {
+    error: flowError.message,
+    stack: flowError.stack,
+    leadData: {
+      phone: leadData.phoneNumber,
+      name: leadData.firstName,
+      message: leadData.userMessage
+    },
+    envVars: {
+      hasFlowId: !!process.env.WHATSAPP_FLOW_ID,
+      hasToken: !!process.env.WHATSAPP_TOKEN,
+      hasPhoneId: !!process.env.WHATSAPP_PHONE_NUMBER_ID
+    }
+  });
+}
   return res.status(200).json({
     success: true,
     message: 'Lead received and processed',
@@ -123,7 +149,7 @@ app.post('/bsp-lead', async (req, res) => {
       subscriberId: storedLead.subscriberId,
       userMessage: storedLead.userMessage,
       stored: true,
-      // Add Supabase info
+      flowSent: true, // You can track this based on success/failure
       supabase: {
         isNewLead: supabaseResult.isNew,
         walletCredits: supabaseResult.lead?.wallet || 0,
@@ -133,7 +159,7 @@ app.post('/bsp-lead', async (req, res) => {
     },
     timestamp: storedLead.timestamp
   });
-} else {
+}else {
       console.log('❌ No phone number provided');
       return res.status(400).json({
         success: false,
@@ -1074,7 +1100,11 @@ async function sendWhatsAppTextMessage(toE164, message) {
   return data;
 }
 // Add this function to send Flow with user phone number embedded
-async function sendWhatsAppFlowMessage(toE164, flowId, flowToken, userName) {
+// Replace your existing sendWhatsAppFlowMessage function with this corrected version:
+
+async function sendWhatsAppFlowMessage(toE164, flowId, userName) {
+  // Use phone number as flow token for bulletproof identification
+  const flowToken = toE164;
   const url = `https://graph.facebook.com/${WHATSAPP_API_VERSION}/${WHATSAPP_PHONE_NUMBER_ID}/messages`;
 
   const response = await fetch(url, {
@@ -1104,12 +1134,12 @@ async function sendWhatsAppFlowMessage(toE164, flowId, flowToken, userName) {
           name: 'flow',
           parameters: {
             flow_message_version: '3',
-            flow_token: flowToken,
-            flow_id: flowId,
+            flow_id: flowId,  // Use flow_id, not flow_name
             flow_cta: 'Start Creating ✨',
+            flow_token: flowToken,
             flow_action: 'navigate',
             flow_action_payload: {
-              screen: 'OPTION_SELECTION',
+              screen: 'OPTION_SELECTION',  // Must match your Flow's entry screen ID
               data: {
                 user_phone: toE164,
                 user_name: userName || '',
@@ -1124,6 +1154,7 @@ async function sendWhatsAppFlowMessage(toE164, flowId, flowToken, userName) {
 
   const data = await response.json();
   if (!response.ok) {
+    console.error('WhatsApp Flow API Error Response:', JSON.stringify(data, null, 2));
     throw new Error(`WhatsApp Flow send failed ${response.status}: ${JSON.stringify(data)}`);
   }
   return data;
