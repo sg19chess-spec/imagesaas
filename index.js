@@ -1302,9 +1302,20 @@ async function handleDataExchange(decryptedBody) {
       console.error('❌ Failed to deduct credit:', deductionResult.error);
     }
   }
-}).catch((error) => {
-      console.error('❌ Background image generation failed:', error);
-    });
+}).catch(async (error) => {
+  console.error('❌ Background image generation failed:', error);
+  
+  // Send error message to user
+  if (userPhone) {
+    try {
+      const errorMessage = `❌ Sorry, image generation failed due to a technical issue. Please try again in a few minutes.\n\n💰 No credits were deducted from your account.`;
+      await sendWhatsAppTextMessage(userPhone, errorMessage);
+      console.log('✅ Error notification sent to user');
+    } catch (msgError) {
+      console.error('❌ Failed to send error message to user:', msgError);
+    }
+  }
+});
 
     // Return success screen immediately
     return { 
