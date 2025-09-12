@@ -552,95 +552,66 @@ async function handleBspLeadDirect(req, res) {
 function getUserPhoneFromPayload(decryptedBody) {
   console.log('=== PHONE NUMBER DETECTION ===');
   
-  // Method 1: Extract from embedded Flow data (sent via flow_action_payload.data)
+  // Method 1: Use flow_token (PRIMARY - most reliable)
+  const flowToken = decryptedBody?.flow_token;
+  if (flowToken && typeof flowToken === 'string' && flowToken.trim().length > 0) {
+    const digits = flowToken.replace(/\D/g, '');
+    if (digits && digits.length >= 10) {
+      const normalizedPhone = digits.length === 10 ? `91${digits}` : digits;
+      console.log('📱 Phone from flow_token (PRIMARY):', normalizedPhone);
+      return normalizedPhone;
+    }
+  }
+  
+  // Method 2: Extract from embedded Flow data (backup only)
   const embeddedPhone = decryptedBody?.data?.user_phone;
   if (embeddedPhone && typeof embeddedPhone === 'string' && embeddedPhone.trim().length > 0) {
     const digits = embeddedPhone.replace(/\D/g, '');
     if (digits && digits.length >= 10) {
       const normalizedPhone = digits.length === 10 ? `91${digits}` : digits;
-      console.log('📱 Phone from embedded Flow data:', normalizedPhone);
+      console.log('📱 Phone from embedded Flow data (BACKUP):', normalizedPhone);
       return normalizedPhone;
     }
   }
   
-  // Method 2: Extract from WhatsApp Flow standard fields (less reliable)
-  const flowCandidates = [
-    decryptedBody?.user?.wa_id,
-    decryptedBody?.user?.phone,
-    decryptedBody?.phone_number,
-    decryptedBody?.mobile_number,
-    decryptedBody?.data?.phone_number
-  ];
-
-  const flowPhone = flowCandidates.find((v) => typeof v === 'string' && v.trim().length > 0);
-  
-  if (flowPhone) {
-    const digits = flowPhone.replace(/\D/g, '');
-    if (digits && digits.length >= 10) {
-      const normalizedPhone = digits.length === 10 ? `91${digits}` : digits;
-      console.log('📱 Phone from WhatsApp Flow fields:', normalizedPhone);
-      return normalizedPhone;
-    }
-  }
-
-  // Method 3: Get from latest BSP lead (fallback only)
-  const latestLead = getBspLead('latest');
-  if (latestLead?.phoneNumber) {
-    const digits = latestLead.phoneNumber.replace(/\D/g, '');
-    if (digits && digits.length >= 10) {
-      const normalizedPhone = digits.length === 10 ? `91${digits}` : digits;
-      console.log('📱 Phone from latest BSP lead (fallback):', normalizedPhone, `(${latestLead.firstName || 'Unknown'})`);
-      return normalizedPhone;
-    }
-  }
-
-  console.log('❌ No phone number found in payload or BSP leads');
+  // Remove BSP lead fallback - we want to fail if flow_token is missing
+  console.log('❌ No valid phone number found in flow_token or embedded data');
   return null;
 }
-
 // Enhanced Image Generation with BSP Integration
 async function generateImageAndSendToUser(decryptedBody, actualImageData, productCategory, sceneDescription, priceOverlay) {
   console.log('🚀 Starting image generation and user notification...');
   
   try {
-    // Generate the image
     const imageUrl = await generateImageFromAi(
       actualImageData,
       productCategory.trim(),
-      sceneDescription && sceneDescription.trim() ? sceneDescription.trim() : null,
-      priceOverlay && priceOverlay.trim() ? priceOverlay.trim() : null
+      sceneDescription,
+      priceOverlay
     );
     
     console.log('✅ Image generation successful:', imageUrl);
 
-    // Get user's phone number (from Flow payload or BSP lead)
-    const toPhone = getUserPhoneFromPayload(decryptedBody);
+    // Use phone from flow_token (passed explicitly) or extract from flow_token
+    const toPhone = decryptedBody.userPhone || decryptedBody.flow_token;
     
     if (!toPhone) {
-      console.warn('⚠️ Phone number not found; cannot send WhatsApp message');
-      console.log('Available BSP leads:', {
-        latest: bspLeadStore.latest?.phoneNumber || 'none',
-        totalStored: bspLeadStore.byPhone.size,
-        recent: bspLeadStore.recent.slice(0, 3).map(lead => ({ 
-          phone: lead.phoneNumber, 
-          name: lead.firstName 
-        }))
-      });
-    } else {
-      // Get lead info for personalized message
-      const leadInfo = getBspLead(toPhone) || getBspLead('latest');
-      
-      const caption = createImageCaption(productCategory, priceOverlay, leadInfo);
-      
-      console.log('📤 Sending WhatsApp image to:', toPhone);
-      console.log('📝 Caption:', caption);
-      
-      try {
-        const waResp = await sendWhatsAppImageMessage(toPhone, imageUrl, caption);
-        console.log('✅ WhatsApp image sent successfully:', JSON.stringify(waResp));
-      } catch (sendErr) {
-        console.error('❌ Failed to send WhatsApp image:', sendErr);
-      }
+      console.warn('⚠️ Phone number not found in flow_token; cannot send WhatsApp message');
+      return imageUrl;
+    }
+
+    // Get lead info for personalized message (optional - can still use BSP data for names)
+    const leadInfo = getBspLead(toPhone);
+    const caption = createImageCaption(productCategory, priceOverlay, leadInfo);
+    
+    console.log('📤 Sending WhatsApp image to flow_token user:', toPhone);
+    console.log('📝 Caption:', caption);
+    
+    try {
+      const waResp = await sendWhatsAppImageMessage(toPhone, imageUrl, caption);
+      console.log('✅ WhatsApp image sent successfully to flow_token user:', JSON.stringify(waResp));
+    } catch (sendErr) {
+      console.error('❌ Failed to send WhatsApp image:', sendErr);
     }
 
     return imageUrl;
@@ -1161,8 +1132,14 @@ async function sendWhatsAppFlowMessage(toE164, flowId, userName) {
 }
 // Request Handlers
 async function handleDataExchange(decryptedBody) {
-  const { action, screen, data } = decryptedBody;
+  const { action, screen, data, flow_token } = decryptedBody;  // Add flow_token extraction
+  
+  // Use flow_token directly as the user phone (since you set flowToken = toE164 when sending)
+  const userPhone = flow_token;
+  
   console.log(`Processing action: ${action} for screen: ${screen}`);
+  console.log('Flow token (user phone):', userPhone);  // Add this log
+  console.log('Data received:', JSON.stringify(data, null, 2));
   console.log('Data received:', JSON.stringify(data, null, 2));
 
   if (action === 'INIT') {
@@ -1174,10 +1151,17 @@ async function handleDataExchange(decryptedBody) {
 
   // Handle option selection from main menu
   if (data?.selected_option) {
-    const userPhone = getUserPhoneFromPayload(decryptedBody);
+    // userPhone is already set at the top of the function from flow_token // No need to call getUserPhoneFromPayload anymore
     
     if (data.selected_option === 'check_balance') {
-  const credits = await checkUserCredits(userPhone || 'unknown');
+  if (!userPhone) {
+    return {
+      screen: 'CHECK_BALANCE',
+      data: { current_credits: "Error: No user phone found in flow token" }
+    };
+  }
+  
+  const credits = await checkUserCredits(userPhone);
   
   // Send balance via WhatsApp message instead of showing in Flow
   if (userPhone) {
@@ -1238,7 +1222,7 @@ async function handleDataExchange(decryptedBody) {
     }
 
     // Check credits before processing
-    const userPhone = getUserPhoneFromPayload(decryptedBody);
+    // userPhone is already set at the top of the function from flow_token // No need to call getUserPhoneFromPayload anymore
     if (userPhone) {
       const credits = await checkUserCredits(userPhone);
       if (credits < 1) {
@@ -1292,12 +1276,12 @@ async function handleDataExchange(decryptedBody) {
 
     // Process in background without awaiting
     generateImageAndSendToUser(
-      decryptedBody,
-      actualImageData,
-      product_category.trim(),
-      scene_description && scene_description.trim() ? scene_description.trim() : null,
-      price_overlay && price_overlay.trim() ? price_overlay.trim() : null
-    ).then(async (imageUrl) => {
+  { ...decryptedBody, userPhone }, // Explicitly pass userPhone from flow_token
+  actualImageData,
+  product_category.trim(),
+  scene_description && scene_description.trim() ? scene_description.trim() : null,
+  price_overlay && price_overlay.trim() ? price_overlay.trim() : null
+).then(async (imageUrl) => {
   console.log('✅ Background image generation completed:', imageUrl);
   
   // Deduct credit after successful generation
