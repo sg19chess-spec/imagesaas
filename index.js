@@ -579,7 +579,7 @@ function getUserPhoneFromPayload(decryptedBody) {
   return null;
 }
 // Enhanced Image Generation with BSP Integration
-async function generateImageAndSendToUser(decryptedBody, actualImageData, productCategory, sceneDescription, priceOverlay) {
+async function generateImageAndSendToUser(decryptedBody, actualImageData, productCategory, sceneDescription, priceOverlay,aspectRatio) {
   console.log('🚀 Starting image generation and user notification...');
   
   try {
@@ -587,7 +587,8 @@ async function generateImageAndSendToUser(decryptedBody, actualImageData, produc
       actualImageData,
       productCategory.trim(),
       sceneDescription,
-      priceOverlay
+      priceOverlay,
+      aspectRatio  
     );
     
     console.log('✅ Image generation successful:', imageUrl);
@@ -872,7 +873,7 @@ async function uploadGeneratedImageToSupabase(base64Data, mimeType) {
 }
 
 // Simple prompt creation function
-function createSimplePrompt(productCategory, sceneDescription = null, priceOverlay = null) {
+function createSimplePrompt(productCategory, sceneDescription = null, priceOverlay = null, aspectRatio = null) {
   let prompt = `Create a professional product photo of this ${productCategory}.`;
   
   if (sceneDescription && sceneDescription.trim()) {
@@ -884,20 +885,27 @@ function createSimplePrompt(productCategory, sceneDescription = null, priceOverl
   if (priceOverlay && priceOverlay.trim()) {
     prompt += ` Include the price "${priceOverlay}" as a stylish overlay on the image.`;
   }
-  
+  if (aspectRatio && aspectRatio.trim()) {
+    if (aspectRatio === '1:1') {
+      prompt += ` Format the image as a perfect square (1:1 aspect ratio).`;
+    } else if (aspectRatio === '9:16') {
+      prompt += ` Format the image in vertical orientation (9:16 aspect ratio), perfect for mobile viewing.`;
+    }
+  }
   prompt += ` Make it look like a high-quality commercial product photo suitable for marketing and sales.`;
   
   return prompt;
 }
 
 // Simplified Gemini API call
-async function generateImageFromAi(productImageBase64, productCategory, sceneDescription = null, priceOverlay = null) {
+async function generateImageFromAi(productImageBase64, productCategory, sceneDescription = null, priceOverlay = null, aspectRatio = null) {
   console.log('=== GENERATE IMAGE FROM AI ===');
   console.log('Parameters:');
   console.log('- productImageBase64 length:', productImageBase64 ? productImageBase64.length : 0);
   console.log('- productCategory:', productCategory || 'MISSING');
   console.log('- sceneDescription:', sceneDescription || 'not provided');
   console.log('- priceOverlay:', priceOverlay || 'not provided');
+  console.log('- aspectRatio:', aspectRatio || 'not provided');
   
   if (!productImageBase64 || typeof productImageBase64 !== 'string') {
     throw new Error("Product image data is missing or invalid");
@@ -925,7 +933,7 @@ async function generateImageFromAi(productImageBase64, productCategory, sceneDes
 
   console.log("Step 2: Creating simple prompt...");
   
-  const simplePrompt = createSimplePrompt(productCategory, sceneDescription, priceOverlay);
+  const simplePrompt = createSimplePrompt(productCategory, sceneDescription, priceOverlay,aspectRatio);
   console.log("Simple prompt:", simplePrompt);
 
   console.log("Step 3: Sending to Gemini API...");
@@ -1199,11 +1207,12 @@ async function handleDataExchange(decryptedBody) {
 
   // Handle image generation flow
   if (data && typeof data === 'object') {
-    const { scene_description, price_overlay, product_image, product_category } = data;
+    const { scene_description, price_overlay, product_image, product_category,aspect_ratio  } = data;
 
     console.log('=== FIELD VALIDATION ===');
     console.log('product_image:', product_image ? 'present' : 'MISSING (REQUIRED)');
     console.log('product_category:', product_category ? `"${product_category}"` : 'MISSING (REQUIRED)');
+    console.log('aspect_ratio:', aspect_ratio ? `"${aspect_ratio}"` : 'not provided (optional)');
     console.log('scene_description:', scene_description ? `"${scene_description}"` : 'not provided (optional)');
     console.log('price_overlay:', price_overlay ? `"${price_overlay}"` : 'not provided (optional)');
 
@@ -1280,7 +1289,8 @@ async function handleDataExchange(decryptedBody) {
   actualImageData,
   product_category.trim(),
   scene_description && scene_description.trim() ? scene_description.trim() : null,
-  price_overlay && price_overlay.trim() ? price_overlay.trim() : null
+  price_overlay && price_overlay.trim() ? price_overlay.trim() : null,
+  aspect_ratio && aspect_ratio.trim() ? aspect_ratio.trim() : null
 ).then(async (imageUrl) => {
   console.log('✅ Background image generation completed:', imageUrl);
   
