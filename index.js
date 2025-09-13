@@ -873,20 +873,32 @@ async function uploadGeneratedImageToSupabase(base64Data, mimeType) {
 
 // Simple prompt creation function
 function createSimplePrompt(productCategory, sceneDescription = null, priceOverlay = null) {
-  let prompt = `Create a professional product photo of this ${productCategory}.`;
+  // Input validation
+  if (!productCategory || !productCategory.trim()) {
+    return "Error: Product name is required";
+  }
   
+  let prompt = `You are a world-class commercial photographer and advertising designer. Create a premium-quality visual for: ${productCategory.trim()}.`;
+  
+  // Auto-framing
+  prompt += ` Automatically choose the best framing (close-up, medium, or long shot) that best showcases this product type.`;
+  
+  // Scene description
   if (sceneDescription && sceneDescription.trim()) {
-    prompt += ` Show it in this setting: ${sceneDescription}.`;
+    prompt += ` Place it in this setting: ${sceneDescription.trim()}.`;
   } else {
-    prompt += ` Use a clean, professional background that complements the product.`;
+    prompt += ` Use a clean, modern background with professional lighting that makes the product the hero.`;
   }
   
+  // Text overlay vs pure photo
   if (priceOverlay && priceOverlay.trim()) {
-    prompt += ` Include the price "${priceOverlay}" as a stylish overlay on the image.`;
+    prompt += ` Design as a professional advertising poster with "${priceOverlay.trim()}" in bold, readable typography positioned for maximum impact.`;
+    prompt += ` Create a balanced, eye-catching layout like premium retail advertising.`;
+  } else {
+    prompt += ` Focus on clean product photography with sharp details, natural colors, and commercial-quality lighting.`;
   }
   
-  prompt += ` Make it look like a high-quality commercial product photo suitable for marketing and sales.`;
-  
+  prompt += ` Output must be marketing-ready, professional, and sales-focused.`;
   return prompt;
 }
 
