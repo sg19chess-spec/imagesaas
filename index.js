@@ -874,25 +874,91 @@ async function uploadGeneratedImageToSupabase(base64Data, mimeType) {
 
 // Simple prompt creation function
 function createSimplePrompt(productCategory, sceneDescription = null, priceOverlay = null, aspectRatio = null) {
-  let prompt = `Create a professional product photo of this ${productCategory}.`;
+  // Universal professional photography foundation
+  let prompt = `World-class commercial product photography of a ${productCategory}, captured by master photographer using industry-leading techniques. `;
   
+  // Adaptive technical specifications
+  prompt += `Shot on professional full-frame camera with optimal lens selection for subject, `;
+  prompt += `f/8 aperture for maximum sharpness across focal plane, ISO 100 base sensitivity, `;
+  prompt += `precise focus stacking where beneficial, optimal focal length for subject scale. `;
+  
+  // Universal image quality standards
+  prompt += `16K ultra-high resolution capture, RAW format processing, `;
+  prompt += `color-accurate reproduction, zero compression artifacts, `;
+  prompt += `edge-to-edge sharpness, micro-detail preservation, `;
+  prompt += `professional color management workflow, true-to-life material representation. `;
+  
+  // Adaptive lighting approach
+  prompt += `Expert lighting design appropriate for subject material and intended use: `;
+  prompt += `professional studio lighting setup with primary key light, balanced fill lighting, `;
+  prompt += `controlled shadow gradation, optimal contrast ratio for subject, `;
+  prompt += `color temperature matched to subject requirements, CRI 95+ color fidelity, `;
+  prompt += `dimensional lighting that reveals form and texture authentically. `;
+  
+  // Flexible scene and context handling
   if (sceneDescription && sceneDescription.trim()) {
-    prompt += ` Show it in this setting: ${sceneDescription}.`;
+    prompt += `Expertly art-directed scene: ${sceneDescription}. `;
+    prompt += `Authentic contextual environment, professional styling appropriate to subject, `;
+    prompt += `meaningful prop integration, believable real-world setting, `;
+    prompt += `environmental storytelling that enhances product narrative without distraction. `;
   } else {
-    prompt += ` Use a clean, professional background that complements the product.`;
+    prompt += `Clean, neutral background optimized for subject visibility, `;
+    prompt += `seamless backdrop with controlled gradient, professional studio environment, `;
+    prompt += `distraction-free presentation emphasizing product form and details. `;
   }
   
+  // Universal composition principles
+  prompt += `Masterful composition using classical design principles, `;
+  prompt += `strategic negative space utilization, balanced visual weight distribution, `;
+  prompt += `optimal viewing angle selection for subject characteristics, `;
+  prompt += `clear visual hierarchy, purposeful framing that serves the subject, `;
+  prompt += `dimensional depth appropriate to product type and intended use. `;
+  
+  // Professional typography integration
   if (priceOverlay && priceOverlay.trim()) {
-    prompt += ` definitely Include the text "${priceOverlay}" as a stylish overlay on the image.`;
+    prompt += `Expertly integrated text overlay: "${priceOverlay}" using professional typography. `;
+    prompt += `Premium typeface selection appropriate for subject and brand context, `;
+    prompt += `optimal sizing for legibility and visual hierarchy, calculated contrast ratio, `;
+    prompt += `WCAG accessibility compliance, strategic positioning using design grid, `;
+    prompt += `anti-aliased rendering with sub-pixel precision, `;
+    prompt += `harmonious color coordination with overall composition, `;
+    prompt += `text placement preserving all critical product features and details, `;
+    prompt += `subtle enhancement effects for depth separation and professional finish. `;
   }
+  
+  // Format optimization
   if (aspectRatio && aspectRatio.trim()) {
     if (aspectRatio === '1:1') {
-      prompt += ` Format the image as a perfect square (1:1 aspect ratio).`;
+      prompt += `Square format composition (1:1) with centered balance, `;
+      prompt += `social media optimized framing, equal visual weight distribution, `;
+      prompt += `radial composition flow drawing attention to subject center. `;
     } else if (aspectRatio === '9:16') {
-      prompt += ` Format the image in vertical orientation (9:16 aspect ratio), perfect for mobile viewing.`;
+      prompt += `Vertical format composition (9:16) optimized for mobile viewing, `;
+      prompt += `portrait orientation with strategic vertical flow, `;
+      prompt += `mobile-first design principles, story format ready. `;
     }
   }
-  prompt += ` Make it look like a high-quality commercial product photo suitable for marketing and sales.`;
+  
+  // Advanced post-production standards
+  prompt += `Professional post-production workflow: frequency separation for texture integrity, `;
+  prompt += `luminosity masking for precise tonal control, selective enhancement, `;
+  prompt += `color grading matched to subject material properties, `;
+  prompt += `micro-contrast optimization, controlled sharpening with edge protection, `;
+  prompt += `highlight detail preservation, shadow detail without muddiness, `;
+  prompt += `lens correction and perspective optimization, chromatic aberration removal. `;
+  
+  // Universal excellence markers
+  prompt += `Commercial photography excellence appropriate for professional use across all channels, `;
+  prompt += `publication-quality standards, advertising-grade presentation, `;
+  prompt += `conversion-optimized e-commerce imagery, brand-appropriate aesthetic treatment, `;
+  prompt += `market-ready professional presentation suitable for any commercial application. `;
+  
+  // Technical perfection universals
+  prompt += `Flawless technical execution: zero digital noise, optimal exposure across all tones, `;
+  prompt += `accurate color reproduction for all material types, pristine highlight detail, `;
+  prompt += `clean shadow information, authentic texture representation, `;
+  prompt += `professional-grade image stability, scalable resolution for any output requirement, `;
+  prompt += `archival quality standards, future-proof technical specifications.`;
   
   return prompt;
 }
