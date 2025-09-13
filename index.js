@@ -266,18 +266,25 @@ app.get('/debug-leads', async (req, res) => {
   });
 });
 // Razorpay webhook endpoint
+// Razorpay webhook endpoint
 app.post('/razorpay-webhook', express.raw({type: 'application/json'}), async (req, res) => {
   console.log('=== RAZORPAY WEBHOOK ===');
   
   try {
     // Verify webhook signature
     const signature = req.headers['x-razorpay-signature'];
-    const body = req.body;
+    const body = req.body; // This is a Buffer from express.raw()
+    
+    if (!signature) {
+      console.error('❌ Missing webhook signature');
+      return res.status(400).json({ error: 'Missing signature' });
+    }
     
     // Calculate expected signature using HMAC SHA256
+    // req.body is already a Buffer, so we can use it directly
     const expectedSignature = crypto
       .createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET)
-      .update(body, 'utf8')
+      .update(body) // body is already a Buffer
       .digest('hex');
     
     if (signature !== expectedSignature) {
@@ -285,7 +292,8 @@ app.post('/razorpay-webhook', express.raw({type: 'application/json'}), async (re
       return res.status(400).json({ error: 'Invalid signature' });
     }
 
-    const event = JSON.parse(body.toString());
+    // Now parse the JSON from the Buffer
+    const event = JSON.parse(body.toString('utf8'));
     console.log('Webhook event:', event.event);
     console.log('Event ID:', req.headers['x-razorpay-event-id']); // For duplicate detection
     
