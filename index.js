@@ -872,33 +872,43 @@ async function uploadGeneratedImageToSupabase(base64Data, mimeType) {
 }
 
 // Simple prompt creation function
-function createSimplePrompt(productCategory, sceneDescription = null, priceOverlay = null) {
-  // Input validation
+function createSimplePrompt(productCategory, sceneDescription = null, priceOverlay = null, aspectRatio = "1:1") {
   if (!productCategory || !productCategory.trim()) {
     return "Error: Product name is required";
   }
   
-  let prompt = `You are a world-class commercial photographer and advertising designer. Create a premium-quality visual for: ${productCategory.trim()}.`;
-  
+  let prompt = `You are a world-class commercial photographer and advertising designer. Create a premium-quality, photorealistic visual for: ${productCategory.trim()}.`;
+
   // Auto-framing
-  prompt += ` Automatically choose the best framing (close-up, medium, or long shot) that best showcases this product type.`;
-  
-  // Scene description
+  prompt += ` Automatically choose the most flattering framing (close-up, medium, or long shot) for this product category.`;
+
+  // Scene handling
   if (sceneDescription && sceneDescription.trim()) {
-    prompt += ` Place it in this setting: ${sceneDescription.trim()}.`;
+    prompt += ` Place it in this photorealistic setting: ${sceneDescription.trim()}.`;
   } else {
-    prompt += ` Use a clean, modern background with professional lighting that makes the product the hero.`;
+    prompt += ` Place it in a realistic environment - either a professional studio setup with soft lighting, or a lifestyle setting showing authentic real-world use.`;
   }
-  
-  // Text overlay vs pure photo
+  prompt += ` Ensure sharp focus, DSLR-quality realism, natural shadows, accurate materials, and lifelike textures.`;
+
+  // Overlay handling
   if (priceOverlay && priceOverlay.trim()) {
-    prompt += ` Design as a professional advertising poster with "${priceOverlay.trim()}" in bold, readable typography positioned for maximum impact.Note:text should contain only "${priceOverlay.trim()}" `;
-    prompt += ` Create a balanced, eye-catching layout like premium retail advertising.`;
+    prompt += ` Keep the product and scene 100% photorealistic. Then overlay ONLY this exact text: "${priceOverlay.trim()}" in professional advertising poster style.`;
+    prompt += ` Do not add any extra text beyond what was provided.`;
+    prompt += ` Use typography intelligently:`;
+    prompt += ` - Brand names → elegant fonts`;
+    prompt += ` - Prices/discounts → bold, eye-catching badges or banners`;
+    prompt += ` - Offers → highlighted with striking accents`;
+    prompt += ` - Contact info → clear, legible placement at bottom`;
+    prompt += ` Position the text strategically (e.g., top corner, side bar, or bottom strip) without covering the product.`;
   } else {
-    prompt += ` Focus on clean product photography with sharp details, natural colors, and commercial-quality lighting.`;
+    prompt += ` Deliver pure commercial photography with zero text overlay.`;
   }
+
+  // Aspect ratio hint
+  prompt += ` Format the output with aspect ratio ${aspectRatio} (suitable for digital ads).`;
+
+  prompt += ` Final result: The image must be indistinguishable from a real professional product photo, with authentic lighting, textures, and marketing-quality presentation.`;
   
-  prompt += ` Output must be marketing-ready, professional, and sales-focused.`;
   return prompt;
 }
 
