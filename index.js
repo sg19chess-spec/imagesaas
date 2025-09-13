@@ -177,9 +177,67 @@ try {
 });
 
 // WhatsApp Flow webhook (POST)
+// WhatsApp Flow webhook (POST)
 app.post('/webhook', async (req, res) => {
   try {
     validateEnvironmentVars();
+    
+    // Handle WhatsApp button responses (for Yes/No follow-up)
+    if (req.body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]) {
+      const message = req.body.entry[0].changes[0].value.messages[0];
+      const from = message.from;
+      
+      // Handle button reply
+      if (message.type === 'interactive' && message.interactive?.type === 'button_reply') {
+        const buttonId = message.interactive.button_reply.id;
+        
+        console.log('📱 Button response received:', {
+          from: from,
+          buttonId: buttonId
+        });
+        
+        if (buttonId === 'generate_another_yes') {
+          console.log('✅ User wants to generate another image - sending Flow');
+          
+          // Get user info
+          const leadInfo = getBspLead(from);
+          const userName = leadInfo?.firstName || 'there';
+          const flowId = process.env.WHATSAPP_FLOW_ID;
+          
+          if (!flowId) {
+            console.error('❌ WHATSAPP_FLOW_ID not configured');
+            await sendWhatsAppTextMessage(from, "Sorry, the image generator is temporarily unavailable. Please try again later.");
+          } else {
+            try {
+              await sendWhatsAppFlowMessage(from, flowId, userName);
+              console.log('✅ New Flow sent for another image generation');
+            } catch (flowError) {
+              console.error('❌ Failed to send new Flow:', flowError);
+              await sendWhatsAppTextMessage(from, "Sorry, there was an issue starting the image generator. Please try again later.");
+            }
+          }
+        } else if (buttonId === 'generate_another_no') {
+          console.log('👋 User declined to generate another image - sending thank you');
+          
+          const leadInfo = getBspLead(from);
+          const userName = leadInfo?.firstName || '';
+          const thankYouMessage = `Thank you${userName ? ` ${userName}` : ''} for using our AI Image Generator! 🎨\n\nWe hope you loved your enhanced product images. Feel free to return anytime to create more stunning visuals for your products!`;
+          
+          try {
+            await sendWhatsAppTextMessage(from, thankYouMessage);
+            console.log('✅ Thank you message sent successfully');
+          } catch (thankYouError) {
+            console.error('❌ Failed to send thank you message:', thankYouError);
+          }
+        }
+        
+        return res.status(200).json({ success: true });
+      }
+      
+      // Handle other message types if needed
+      console.log('📝 Other message type received:', message.type);
+      return res.status(200).json({ success: true });
+    }
     
     // Check if this is a BSP lead (before WhatsApp Flow processing)
     if (req.body) {
@@ -583,6 +641,25 @@ async function generateImageAndSendToUser(decryptedBody, actualImageData, produc
   console.log('🚀 Starting image generation and user notification...');
   
   try {
+    // Use phone from flow_token (passed explicitly) or extract from flow_token
+    const toPhone = decryptedBody.userPhone || decryptedBody.flow_token;
+    
+    if (!toPhone) {
+      console.warn('⚠️ Phone number not found in flow_token; cannot send WhatsApp message');
+      throw new Error('User phone not found');
+    }
+
+    // Send immediate "generation in progress" message
+    console.log('📤 Sending immediate generation progress message...');
+    try {
+      const progressMessage = "🎨 Your image is getting generated, kindly wait...";
+      await sendWhatsAppTextMessage(toPhone, progressMessage);
+      console.log('✅ Progress message sent successfully');
+    } catch (progressError) {
+      console.error('❌ Failed to send progress message:', progressError);
+    }
+
+    // Generate the actual image
     const imageUrl = await generateImageFromAi(
       actualImageData,
       productCategory.trim(),
@@ -592,31 +669,42 @@ async function generateImageAndSendToUser(decryptedBody, actualImageData, produc
     
     console.log('✅ Image generation successful:', imageUrl);
 
-    // Use phone from flow_token (passed explicitly) or extract from flow_token
-    const toPhone = decryptedBody.userPhone || decryptedBody.flow_token;
-    
-    if (!toPhone) {
-      console.warn('⚠️ Phone number not found in flow_token; cannot send WhatsApp message');
-      return imageUrl;
-    }
-
     // Get lead info for personalized message (optional - can still use BSP data for names)
     const leadInfo = getBspLead(toPhone);
     const caption = createImageCaption(productCategory, priceOverlay, leadInfo);
     
-    console.log('📤 Sending WhatsApp image to flow_token user:', toPhone);
+    console.log('📤 Sending generated image to user:', toPhone);
     console.log('📝 Caption:', caption);
     
+    // Send the generated image
+    const waResp = await sendWhatsAppImageMessage(toPhone, imageUrl, caption);
+    console.log('✅ WhatsApp image sent successfully:', JSON.stringify(waResp));
+
+    // After successful image delivery, send follow-up message with options
+    console.log('📤 Sending follow-up message with options...');
     try {
-      const waResp = await sendWhatsAppImageMessage(toPhone, imageUrl, caption);
-      console.log('✅ WhatsApp image sent successfully to flow_token user:', JSON.stringify(waResp));
-    } catch (sendErr) {
-      console.error('❌ Failed to send WhatsApp image:', sendErr);
+      await sendWhatsAppFollowUpMessage(toPhone);
+      console.log('✅ Follow-up message sent successfully');
+    } catch (followUpError) {
+      console.error('❌ Failed to send follow-up message:', followUpError);
     }
 
     return imageUrl;
   } catch (error) {
     console.error('❌ Image generation or sending failed:', error);
+    
+    // Send error message to user if phone is available
+    const toPhone = decryptedBody.userPhone || decryptedBody.flow_token;
+    if (toPhone) {
+      try {
+        const errorMessage = "❌ Sorry, image generation failed due to a technical issue. Please try again in a few minutes.";
+        await sendWhatsAppTextMessage(toPhone, errorMessage);
+        console.log('✅ Error message sent to user');
+      } catch (errorMsgError) {
+        console.error('❌ Failed to send error message:', errorMsgError);
+      }
+    }
+    
     throw error;
   }
 }
@@ -1092,7 +1180,57 @@ async function sendWhatsAppTextMessage(toE164, message) {
 }
 // Add this function to send Flow with user phone number embedded
 // Replace your existing sendWhatsAppFlowMessage function with this corrected version:
+// New function to send follow-up message with Yes/No options
+async function sendWhatsAppFollowUpMessage(toE164) {
+  if (!toE164) throw new Error('Missing recipient phone number (E.164 format)');
 
+  const url = `https://graph.facebook.com/${WHATSAPP_API_VERSION}/${WHATSAPP_PHONE_NUMBER_ID}/messages`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to: toE164,
+      type: 'interactive',
+      interactive: {
+        type: 'button',
+        body: {
+          text: "Do you want to generate another image?"
+        },
+        action: {
+          buttons: [
+            {
+              type: 'reply',
+              reply: {
+                id: 'generate_another_yes',
+                title: 'Yes ✨'
+              }
+            },
+            {
+              type: 'reply',
+              reply: {
+                id: 'generate_another_no',
+                title: 'No, Thanks'
+              }
+            }
+          ]
+        }
+      }
+    })
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    console.error('WhatsApp Follow-up API Error Response:', JSON.stringify(data, null, 2));
+    throw new Error(`WhatsApp follow-up send failed ${response.status}: ${JSON.stringify(data)}`);
+  }
+  return data;
+}
 async function sendWhatsAppFlowMessage(toE164, flowId, userName) {
   // Use phone number as flow token for bulletproof identification
   const flowToken = toE164;
@@ -1295,47 +1433,29 @@ async function handleDataExchange(decryptedBody) {
     console.log('🚀 Showing success screen first, then processing in background...');
 
     // Process in background without awaiting
-    generateImageAndSendToUser(
-  { ...decryptedBody, userPhone }, // Explicitly pass userPhone from flow_token
-  actualImageData,
-  product_category.trim(),
-  scene_description && scene_description.trim() ? scene_description.trim() : null,
-  price_overlay && price_overlay.trim() ? price_overlay.trim() : null
-).then(async (imageUrl) => {
-  console.log('✅ Background image generation completed:', imageUrl);
-  
-  // Deduct credit after successful generation
-  if (userPhone) {
-    const deductionResult = await deductUserCredits(userPhone, 1);
-    if (deductionResult.success) {
-      console.log('💰 Credit deducted successfully. New balance:', deductionResult.newBalance);
-      
-      // Send updated balance via WhatsApp
-      try {
-        const balanceUpdateMessage = `✅ Image generated successfully! 1 credit used.\n\n💰 Your remaining balance: ${deductionResult.newBalance} credits`;
-        await sendWhatsAppTextMessage(userPhone, balanceUpdateMessage);
-        console.log('✅ Balance update message sent via WhatsApp');
-      } catch (error) {
-        console.error('❌ Failed to send balance update message:', error);
-      }
-    } else {
-      console.error('❌ Failed to deduct credit:', deductionResult.error);
-    }
-  }
-}).catch(async (error) => {
-  console.error('❌ Background image generation failed:', error);
-  
-  // Send error message to user
-  if (userPhone) {
-    try {
-      const errorMessage = `❌ Sorry, image generation failed due to a technical issue. Please try again in a few minutes.\n\n💰 No credits were deducted from your account.`;
-      await sendWhatsAppTextMessage(userPhone, errorMessage);
-      console.log('✅ Error notification sent to user');
-    } catch (msgError) {
-      console.error('❌ Failed to send error message to user:', msgError);
-    }
-  }
-});
+// Process in background without awaiting - this will now send progress message immediately
+      generateImageAndSendToUser(
+        { ...decryptedBody, userPhone }, // Explicitly pass userPhone from flow_token
+        actualImageData,
+        product_category.trim(),
+        scene_description && scene_description.trim() ? scene_description.trim() : null,
+        price_overlay && price_overlay.trim() ? price_overlay.trim() : null
+      ).then(async (imageUrl) => {
+        console.log('✅ Background image generation completed:', imageUrl);
+        
+        // Deduct credit after successful generation
+        if (userPhone) {
+          const deductionResult = await deductUserCredits(userPhone, 1);
+          if (deductionResult.success) {
+            console.log('💰 Credit deducted successfully. New balance:', deductionResult.newBalance);
+          } else {
+            console.error('❌ Failed to deduct credit:', deductionResult.error);
+          }
+        }
+      }).catch(async (error) => {
+        console.error('❌ Background image generation failed:', error);
+        // Error handling is now done inside generateImageAndSendToUser function
+      });
 
     // Return success screen immediately
     return { 
