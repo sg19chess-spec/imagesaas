@@ -892,7 +892,7 @@ function createSimplePrompt(productCategory, sceneDescription = null, priceOverl
   
   // Text overlay vs pure photo
   if (priceOverlay && priceOverlay.trim()) {
-    prompt += ` Design as a professional advertising poster with "${priceOverlay.trim()}" in bold, readable typography positioned for maximum impact.`;
+    prompt += ` Design as a professional advertising poster with "${priceOverlay.trim()}" in bold, readable typography positioned for maximum impact.Note:text should contain only "${priceOverlay.trim()}" `;
     prompt += ` Create a balanced, eye-catching layout like premium retail advertising.`;
   } else {
     prompt += ` Focus on clean product photography with sharp details, natural colors, and commercial-quality lighting.`;
