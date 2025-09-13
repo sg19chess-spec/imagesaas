@@ -3,7 +3,8 @@ import cors from 'cors';
 import { createHash, createHmac, createDecipheriv, createCipheriv, randomBytes } from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-
+import Razorpay from 'razorpay';
+import crypto from 'crypto';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -20,7 +21,10 @@ const WHATSAPP_API_VERSION = process.env.WHATSAPP_API_VERSION || 'v23.0';
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET
+});
 // --- BSP Lead Storage ---
 // Simple in-memory storage for BSP leads (resets on server restart)
 const bspLeadStore = {
@@ -183,61 +187,12 @@ app.post('/webhook', async (req, res) => {
     validateEnvironmentVars();
     
     // Handle WhatsApp button responses (for Yes/No follow-up)
-    if (req.body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]) {
-      const message = req.body.entry[0].changes[0].value.messages[0];
-      const from = message.from;
-      
-      // Handle button reply
-      if (message.type === 'interactive' && message.interactive?.type === 'button_reply') {
-        const buttonId = message.interactive.button_reply.id;
-        
-        console.log('📱 Button response received:', {
-          from: from,
-          buttonId: buttonId
-        });
-        
-        if (buttonId === 'generate_another_yes') {
-          console.log('✅ User wants to generate another image - sending Flow');
-          
-          // Get user info
-          const leadInfo = getBspLead(from);
-          const userName = leadInfo?.firstName || 'there';
-          const flowId = process.env.WHATSAPP_FLOW_ID;
-          
-          if (!flowId) {
-            console.error('❌ WHATSAPP_FLOW_ID not configured');
-            await sendWhatsAppTextMessage(from, "Sorry, the image generator is temporarily unavailable. Please try again later.");
-          } else {
-            try {
-              await sendWhatsAppFlowMessage(from, flowId, userName);
-              console.log('✅ New Flow sent for another image generation');
-            } catch (flowError) {
-              console.error('❌ Failed to send new Flow:', flowError);
-              await sendWhatsAppTextMessage(from, "Sorry, there was an issue starting the image generator. Please try again later.");
-            }
-          }
-        } else if (buttonId === 'generate_another_no') {
-          console.log('👋 User declined to generate another image - sending thank you');
-          
-          const leadInfo = getBspLead(from);
-          const userName = leadInfo?.firstName || '';
-          const thankYouMessage = `Thank you${userName ? ` ${userName}` : ''} for using our AI Image Generator! 🎨\n\nWe hope you loved your enhanced product images. Feel free to return anytime to create more stunning visuals for your products!`;
-          
-          try {
-            await sendWhatsAppTextMessage(from, thankYouMessage);
-            console.log('✅ Thank you message sent successfully');
-          } catch (thankYouError) {
-            console.error('❌ Failed to send thank you message:', thankYouError);
-          }
-        }
-        
-        return res.status(200).json({ success: true });
-      }
-      
-      // Handle other message types if needed
-      console.log('📝 Other message type received:', message.type);
-      return res.status(200).json({ success: true });
-    }
+    // Handle WhatsApp messages if needed (keep minimal)
+if (req.body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]) {
+  const message = req.body.entry[0].changes[0].value.messages[0];
+  console.log('📝 Message received:', message.type);
+  return res.status(200).json({ success: true });
+}
     
     // Check if this is a BSP lead (before WhatsApp Flow processing)
     if (req.body) {
@@ -310,7 +265,160 @@ app.get('/debug-leads', async (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+// Razorpay webhook endpoint
+app.post('/razorpay-webhook', express.raw({type: 'application/json'}), async (req, res) => {
+  console.log('=== RAZORPAY WEBHOOK ===');
+  
+  try {
+    // Verify webhook signature
+    const signature = req.headers['x-razorpay-signature'];
+    const body = req.body;
+    
+    // Calculate expected signature using HMAC SHA256
+    const expectedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET)
+      .update(body, 'utf8')
+      .digest('hex');
+    
+    if (signature !== expectedSignature) {
+      console.error('❌ Invalid webhook signature');
+      return res.status(400).json({ error: 'Invalid signature' });
+    }
 
+    const event = JSON.parse(body.toString());
+    console.log('Webhook event:', event.event);
+    console.log('Event ID:', req.headers['x-razorpay-event-id']); // For duplicate detection
+    
+    // Handle successful payment link payment
+    if (event.event === 'payment_link.paid') {
+      const paymentLinkEntity = event.payload.payment_link.entity;
+      const notes = paymentLinkEntity.notes;
+      
+      if (!notes?.user_phone || !notes?.credits_to_add) {
+        console.error('❌ Missing required payment notes');
+        return res.status(400).json({ error: 'Missing payment metadata' });
+      }
+
+      const userPhone = notes.user_phone;
+      const creditsToAdd = parseInt(notes.credits_to_add);
+      const planId = notes.plan_id;
+      const amountPaid = paymentLinkEntity.amount_paid / 100; // Convert from paise
+
+      console.log('💳 Processing successful payment:', {
+        userPhone,
+        creditsToAdd,
+        planId,
+        amountPaid,
+        paymentLinkId: paymentLinkEntity.id
+      });
+
+      // Get current wallet balance
+      const currentCredits = await getLeadWallet(userPhone);
+      const newBalance = currentCredits + creditsToAdd;
+
+      // Update wallet in Supabase
+      const success = await updateLeadWallet(userPhone, newBalance);
+      
+      if (success) {
+        console.log('✅ Credits added successfully:', {
+          userPhone,
+          previousBalance: currentCredits,
+          creditsAdded: creditsToAdd,
+          newBalance
+        });
+
+        // Send success message to user
+        try {
+          const successMessage = `🎉 *Payment Successful!*\n\n💰 ₹${amountPaid} payment confirmed\n🎨 ${creditsToAdd} credits added to your account\n📊 Current Balance: ${newBalance} credits\n\nYou can now generate ${newBalance} amazing product images!`;
+          
+          await sendWhatsAppTextMessage(userPhone, successMessage);
+          console.log('✅ Payment success message sent');
+
+          // Optional: Send Flow for immediate image generation after delay
+          setTimeout(async () => {
+            try {
+              const leadInfo = getBspLead(userPhone);
+              const userName = leadInfo?.firstName || '';
+              const flowId = process.env.WHATSAPP_FLOW_ID;
+              
+              if (flowId) {
+                await sendWhatsAppFlowMessage(userPhone, flowId, userName);
+                console.log('✅ Post-payment Flow sent');
+              }
+            } catch (flowError) {
+              console.error('❌ Failed to send post-payment Flow:', flowError);
+            }
+          }, 3000); // 3 second delay
+
+        } catch (messageError) {
+          console.error('❌ Failed to send success message:', messageError);
+        }
+      } else {
+        console.error('❌ Failed to update wallet in Supabase');
+        
+        // Send error message to user
+        try {
+          await sendWhatsAppTextMessage(userPhone, 
+            'Payment received but failed to update credits. Please contact support with your payment details.');
+        } catch (msgError) {
+          console.error('Failed to send error message:', msgError);
+        }
+      }
+    }
+
+    // Handle payment link expiry
+    if (event.event === 'payment_link.expired') {
+      const paymentLinkEntity = event.payload.payment_link.entity;
+      const notes = paymentLinkEntity.notes;
+      
+      if (notes?.user_phone) {
+        const userPhone = notes.user_phone;
+        const planId = notes.plan_id;
+        const creditsToAdd = notes.credits_to_add;
+
+        console.log('⏰ Payment link expired:', {
+          userPhone,
+          planId,
+          creditsToAdd,
+          paymentLinkId: paymentLinkEntity.id
+        });
+
+        try {
+          const expiredMessage = `⏰ *Payment Link Expired*\n\nYour payment link for ${creditsToAdd} credits has expired.\n\nWould you like to create a new payment link? Simply use the recharge option in our menu to get a fresh payment link.`;
+          
+          await sendWhatsAppTextMessage(userPhone, expiredMessage);
+          console.log('✅ Payment expiry message sent');
+
+          // Optional: Send Flow to restart the process after delay
+          setTimeout(async () => {
+            try {
+              const leadInfo = getBspLead(userPhone);
+              const userName = leadInfo?.firstName || '';
+              const flowId = process.env.WHATSAPP_FLOW_ID;
+              
+              if (flowId) {
+                await sendWhatsAppFlowMessage(userPhone, flowId, userName);
+                console.log('✅ Post-expiry Flow sent for retry');
+              }
+            } catch (flowError) {
+              console.error('❌ Failed to send post-expiry Flow:', flowError);
+            }
+          }, 5000); // 5 second delay
+
+        } catch (messageError) {
+          console.error('❌ Failed to send expiry message:', messageError);
+        }
+      }
+    }
+
+    // Always respond with 200 to acknowledge receipt
+    res.status(200).json({ status: 'ok' });
+    
+  } catch (error) {
+    console.error('❌ Webhook processing error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 // --- All Your Functions Below ---
 
 // Store BSP lead data
@@ -728,17 +836,20 @@ function createImageCaption(productCategory, priceOverlay, leadInfo) {
 // Utility Functions
 function validateEnvironmentVars() {
   const requiredVars = [
-    'PRIVATE_KEY',
-    'VERIFY_TOKEN',
-    'SUPABASE_URL',
-    'GEMINI_API_KEY',
-    'SUPABASE_S3_ENDPOINT',
-    'SUPABASE_S3_ACCESS_KEY_ID',
-    'SUPABASE_S3_SECRET_ACCESS_KEY',
-    'WHATSAPP_TOKEN',
-    'WHATSAPP_PHONE_NUMBER_ID',
-    'WHATSAPP_FLOW_ID' 
-  ];
+  'PRIVATE_KEY',
+  'VERIFY_TOKEN',
+  'SUPABASE_URL',
+  'GEMINI_API_KEY',
+  'SUPABASE_S3_ENDPOINT',
+  'SUPABASE_S3_ACCESS_KEY_ID',
+  'SUPABASE_S3_SECRET_ACCESS_KEY',
+  'WHATSAPP_TOKEN',
+  'WHATSAPP_PHONE_NUMBER_ID',
+  'WHATSAPP_FLOW_ID',
+  'RAZORPAY_KEY_ID',
+  'RAZORPAY_KEY_SECRET',
+  'RAZORPAY_WEBHOOK_SECRET'
+];
   const missing = requiredVars.filter((varName) => !process.env[varName]);
   if (missing.length > 0) {
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
@@ -1175,56 +1286,7 @@ async function sendWhatsAppTextMessage(toE164, message) {
 // Add this function to send Flow with user phone number embedded
 // Replace your existing sendWhatsAppFlowMessage function with this corrected version:
 // New function to send follow-up message with Yes/No options
-async function sendWhatsAppFollowUpMessage(toE164) {
-  if (!toE164) throw new Error('Missing recipient phone number (E.164 format)');
 
-  const url = `https://graph.facebook.com/${WHATSAPP_API_VERSION}/${WHATSAPP_PHONE_NUMBER_ID}/messages`;
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      messaging_product: 'whatsapp',
-      recipient_type: 'individual',
-      to: toE164,
-      type: 'interactive',
-      interactive: {
-        type: 'button',
-        body: {
-          text: "Do you want to generate another image?"
-        },
-        action: {
-          buttons: [
-            {
-              type: 'reply',
-              reply: {
-                id: 'generate_another_yes',
-                title: 'Yes'
-              }
-            },
-            {
-              type: 'reply',
-              reply: {
-                id: 'generate_another_no',
-                title: 'No, Thanks'
-              }
-            }
-          ]
-        }
-      }
-    })
-  });
-
-  const data = await response.json();
-  if (!response.ok) {
-    console.error('WhatsApp Follow-up API Error Response:', JSON.stringify(data, null, 2));
-    throw new Error(`WhatsApp follow-up send failed ${response.status}: ${JSON.stringify(data)}`);
-  }
-  return data;
-}
 async function sendWhatsAppFlowMessage(toE164, flowId, userName) {
   // Use phone number as flow token for bulletproof identification
   const flowToken = toE164;
@@ -1343,9 +1405,65 @@ async function handleDataExchange(decryptedBody) {
             data: { current_credits: credits.toString() }
           };
         }
-      }
-      
+      } 
       return { screen: 'COLLECT_INFO', data: {} };
+    }
+    
+    if (data.selected_option === 'recharge') {
+      return { screen: 'RECHARGE_SCREEN', data: {} };
+    }
+  }
+
+  // Handle recharge plan selection
+  if (data?.selected_plan) {
+    const planDetails = {
+      starter: { name: 'Starter Plan', amount: 299, credits: 10 },
+      business: { name: 'Business Plan', amount: 599, credits: 25 },
+      growth: { name: 'Growth Plan', amount: 1099, credits: 50 },
+      agency: { name: 'Agency Plan', amount: 1999, credits: 100 }
+    };
+
+    const selectedPlan = planDetails[data.selected_plan];
+    if (!selectedPlan) {
+      return {
+        screen: 'RECHARGE_SCREEN',
+        data: { error_message: 'Invalid plan selected. Please try again.' }
+      };
+    }
+
+    const userPhone = flow_token;
+    if (!userPhone) {
+      return {
+        screen: 'RECHARGE_SCREEN', 
+        data: { error_message: 'Unable to identify user. Please try again.' }
+      };
+    }
+
+    try {
+      const paymentLink = await createRazorpayPaymentLink(
+        userPhone,
+        data.selected_plan,
+        selectedPlan.amount,
+        selectedPlan.credits
+      );
+
+      sendPaymentLinkMessage(userPhone, paymentLink, selectedPlan).catch(error => {
+        console.error('Background payment link send failed:', error);
+      });
+
+      return {
+        screen: 'RECHARGE_SCREEN',
+        data: { 
+          success_message: `Payment link for ${selectedPlan.name} has been sent to your WhatsApp! Complete the payment to add ${selectedPlan.credits} credits to your account.`
+        }
+      };
+
+    } catch (error) {
+      console.error('❌ Payment link creation failed:', error);
+      return {
+        screen: 'RECHARGE_SCREEN',
+        data: { error_message: 'Failed to create payment link. Please try again or contact support.' }
+      };
     }
   }
 
@@ -1444,12 +1562,51 @@ generateImageAndSendToUser(
     if (deductionResult.success) {
       console.log('💰 Credit deducted successfully. New balance:', deductionResult.newBalance);
       
-      // Step 1: Send credit message first (after image delivery)
+      // Send credit update message after image delivery
       try {
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for image delivery
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for image delivery
         const balanceUpdateMessage = `✅ Image generated successfully! 1 credit used.\n\n💰 Your remaining balance: ${deductionResult.newBalance} credits`;
         await sendWhatsAppTextMessage(userPhone, balanceUpdateMessage);
         console.log('✅ Balance update message sent via WhatsApp');
+        
+        // Auto-send new Flow after balance message (if user has credits)
+        if (deductionResult.newBalance > 0) {
+          setTimeout(async () => {
+            try {
+              const leadInfo = getBspLead(userPhone);
+              const userName = leadInfo?.firstName || '';
+              const flowId = process.env.WHATSAPP_FLOW_ID;
+              
+              if (flowId) {
+                await sendWhatsAppFlowMessage(userPhone, flowId, userName);
+                console.log('✅ Auto-Flow sent for another image generation');
+              }
+            } catch (flowError) {
+              console.error('❌ Failed to send auto-Flow:', flowError);
+            }
+          }, 3000); // 3 seconds after balance message
+        } else {
+          // If no credits left, suggest recharge
+          setTimeout(async () => {
+            try {
+              const rechargeMessage = `🔋 You've used all your credits! To generate more amazing images, use our recharge option to add more credits to your account.`;
+              await sendWhatsAppTextMessage(userPhone, rechargeMessage);
+              
+              // Send Flow anyway so they can see recharge option
+              const leadInfo = getBspLead(userPhone);
+              const userName = leadInfo?.firstName || '';
+              const flowId = process.env.WHATSAPP_FLOW_ID;
+              
+              if (flowId) {
+                await sendWhatsAppFlowMessage(userPhone, flowId, userName);
+                console.log('✅ Flow sent for recharge option');
+              }
+            } catch (error) {
+              console.error('❌ Failed to send recharge flow:', error);
+            }
+          }, 3000);
+        }
+        
       } catch (error) {
         console.error('❌ Failed to send balance update message:', error);
       }      
@@ -1492,6 +1649,91 @@ async function handleHealthCheck() {
 async function handleErrorNotification(decryptedBody) {
   console.log('Error notification received:', decryptedBody);
   return { data: { acknowledged: true } };
+}
+// Razorpay functions
+async function createRazorpayPaymentLink(phoneNumber, planId, amount, credits) {
+  try {
+    const planNames = {
+      starter: 'Starter Plan',
+      business: 'Business Plan', 
+      growth: 'Growth Plan',
+      agency: 'Agency Plan'
+    };
+
+    const paymentLink = await razorpay.paymentLink.create({
+      amount: amount * 100, // Amount in paise
+      currency: 'INR',
+      description: `${planNames[planId]} - ${credits} Image Credits`,
+      customer: {
+        contact: phoneNumber
+      },
+      notify: {
+        sms: false,
+        email: false
+      },
+      reminder_enable: false,
+      notes: {
+        user_phone: phoneNumber,
+        plan_id: planId,
+        credits_to_add: credits.toString(),
+        created_at: new Date().toISOString()
+      }
+    });
+
+    console.log('✅ Payment link created:', paymentLink.short_url);
+    return paymentLink;
+  } catch (error) {
+    console.error('❌ Failed to create payment link:', error);
+    throw error;
+  }
+}
+
+async function sendPaymentLinkMessage(phoneNumber, paymentLink, planDetails) {
+  try {
+    const message = `💳 *Payment Link Ready*\n\n📦 ${planDetails.name}\n💰 Amount: ₹${planDetails.amount}\n🎨 Credits: ${planDetails.credits} images\n\nClick the button below to complete your payment securely:`;
+
+    const url = `https://graph.facebook.com/${WHATSAPP_API_VERSION}/${WHATSAPP_PHONE_NUMBER_ID}/messages`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: phoneNumber,
+        type: 'interactive',
+        interactive: {
+          type: 'button',
+          body: {
+            text: message
+          },
+          action: {
+            buttons: [
+              {
+                type: 'url',
+                url: paymentLink.short_url,
+                text: 'Pay Now 💳'
+              }
+            ]
+          }
+        }
+      })
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(`WhatsApp send failed ${response.status}: ${JSON.stringify(data)}`);
+    }
+    
+    console.log('✅ Payment link sent via WhatsApp');
+    return data;
+  } catch (error) {
+    console.error('❌ Failed to send payment link:', error);
+    throw error;
+  }
 }
 // Start server
 app.listen(PORT, () => {
