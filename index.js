@@ -1452,16 +1452,7 @@ generateImageAndSendToUser(
         console.log('✅ Balance update message sent via WhatsApp');
       } catch (error) {
         console.error('❌ Failed to send balance update message:', error);
-      }
-      
-      // Step 2: Send buttons after credit message
-      try {
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait after credit message
-        await sendWhatsAppFollowUpMessage(userPhone);
-        console.log('✅ Follow-up buttons sent successfully');
-      } catch (followUpError) {
-        console.error('❌ Failed to send follow-up message:', followUpError);
-      }
+      }      
     } else {
       console.error('❌ Failed to deduct credit:', deductionResult.error);
     }
