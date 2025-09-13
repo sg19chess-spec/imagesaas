@@ -883,7 +883,7 @@ function createSimplePrompt(productCategory, sceneDescription = null, priceOverl
   }
   
   if (priceOverlay && priceOverlay.trim()) {
-    prompt += ` Include the price "${priceOverlay}" as a stylish overlay on the image.`;
+    prompt += ` definitely Include the text "${priceOverlay}" as a stylish overlay on the image.`;
   }
   if (aspectRatio && aspectRatio.trim()) {
     if (aspectRatio === '1:1') {
