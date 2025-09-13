@@ -677,17 +677,20 @@ async function generateImageAndSendToUser(decryptedBody, actualImageData, produc
     console.log('📝 Caption:', caption);
     
     // Send the generated image
-    const waResp = await sendWhatsAppImageMessage(toPhone, imageUrl, caption);
-    console.log('✅ WhatsApp image sent successfully:', JSON.stringify(waResp));
+    // Send the generated image
+const waResp = await sendWhatsAppImageMessage(toPhone, imageUrl, caption);
+console.log('✅ WhatsApp image sent successfully:', JSON.stringify(waResp));
 
-    // After successful image delivery, send follow-up message with options
-    console.log('📤 Sending follow-up message with options...');
-    try {
-      await sendWhatsAppFollowUpMessage(toPhone);
-      console.log('✅ Follow-up message sent successfully');
-    } catch (followUpError) {
-      console.error('❌ Failed to send follow-up message:', followUpError);
-    }
+// Wait a moment to ensure image is delivered, then send follow-up
+console.log('📤 Sending follow-up message with options after image delivery...');
+try {
+  // Small delay to ensure image message is delivered first
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  await sendWhatsAppFollowUpMessage(toPhone);
+  console.log('✅ Follow-up message sent successfully');
+} catch (followUpError) {
+  console.error('❌ Failed to send follow-up message:', followUpError);
+}
 
     return imageUrl;
   } catch (error) {
