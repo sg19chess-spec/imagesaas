@@ -1690,8 +1690,6 @@ async function createRazorpayPaymentLink(phoneNumber, planId, amount, credits) {
 
 async function sendPaymentLinkMessage(phoneNumber, paymentLink, planDetails) {
   try {
-    const message = `💳 *Payment Link Ready*\n\n📦 ${planDetails.name}\n💰 Amount: ₹${planDetails.amount}\n🎨 Credits: ${planDetails.credits} images\n\nClick the button below to complete your payment securely:`;
-
     const url = `https://graph.facebook.com/${WHATSAPP_API_VERSION}/${WHATSAPP_PHONE_NUMBER_ID}/messages`;
 
     const response = await fetch(url, {
@@ -1706,18 +1704,23 @@ async function sendPaymentLinkMessage(phoneNumber, paymentLink, planDetails) {
         to: phoneNumber,
         type: 'interactive',
         interactive: {
-          type: 'button',
+          type: 'cta_url',
+          header: {
+            type: 'text',
+            text: '💳 Payment Ready'
+          },
           body: {
-            text: message
+            text: `📦 ${planDetails.name}\n💰 Amount: ₹${planDetails.amount}\n🎨 Credits: ${planDetails.credits} images\n\nComplete your payment securely using the button below:`
+          },
+          footer: {
+            text: 'Secure payment via Razorpay'
           },
           action: {
-            buttons: [
-              {
-                type: 'url',
-                url: paymentLink.short_url,
-                text: 'Pay Now 💳'
-              }
-            ]
+            name: 'cta_url',
+            parameters: {
+              display_text: 'Pay Now 💳',
+              url: paymentLink.short_url
+            }
           }
         }
       })
@@ -1728,7 +1731,7 @@ async function sendPaymentLinkMessage(phoneNumber, paymentLink, planDetails) {
       throw new Error(`WhatsApp send failed ${response.status}: ${JSON.stringify(data)}`);
     }
     
-    console.log('✅ Payment link sent via WhatsApp');
+    console.log('✅ Payment link sent via WhatsApp with CTA button');
     return data;
   } catch (error) {
     console.error('❌ Failed to send payment link:', error);
