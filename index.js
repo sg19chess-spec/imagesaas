@@ -678,21 +678,12 @@ async function generateImageAndSendToUser(decryptedBody, actualImageData, produc
     
     // Send the generated image
     // Send the generated image
+// Send the generated image
 const waResp = await sendWhatsAppImageMessage(toPhone, imageUrl, caption);
 console.log('✅ WhatsApp image sent successfully:', JSON.stringify(waResp));
 
-// Wait a moment to ensure image is delivered, then send follow-up
-console.log('📤 Sending follow-up message with options after image delivery...');
-try {
-  // Small delay to ensure image message is delivered first
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  await sendWhatsAppFollowUpMessage(toPhone);
-  console.log('✅ Follow-up message sent successfully');
-} catch (followUpError) {
-  console.error('❌ Failed to send follow-up message:', followUpError);
-}
-
-    return imageUrl;
+// Return imageUrl - buttons and credit message will be sent from background processing
+return imageUrl;
   } catch (error) {
     console.error('❌ Image generation or sending failed:', error);
     
@@ -1211,7 +1202,7 @@ async function sendWhatsAppFollowUpMessage(toE164) {
               type: 'reply',
               reply: {
                 id: 'generate_another_yes',
-                title: 'Yes ✨'
+                title: 'Yes'
               }
             },
             {
@@ -1437,29 +1428,48 @@ async function handleDataExchange(decryptedBody) {
 
     // Process in background without awaiting
 // Process in background without awaiting - this will now send progress message immediately
-      generateImageAndSendToUser(
-        { ...decryptedBody, userPhone }, // Explicitly pass userPhone from flow_token
-        actualImageData,
-        product_category.trim(),
-        scene_description && scene_description.trim() ? scene_description.trim() : null,
-        price_overlay && price_overlay.trim() ? price_overlay.trim() : null
-      ).then(async (imageUrl) => {
-        console.log('✅ Background image generation completed:', imageUrl);
-        
-        // Deduct credit after successful generation
-        if (userPhone) {
-          const deductionResult = await deductUserCredits(userPhone, 1);
-          if (deductionResult.success) {
-            console.log('💰 Credit deducted successfully. New balance:', deductionResult.newBalance);
-          } else {
-            console.error('❌ Failed to deduct credit:', deductionResult.error);
-          }
-        }
-      }).catch(async (error) => {
-        console.error('❌ Background image generation failed:', error);
-        // Error handling is now done inside generateImageAndSendToUser function
-      });
-
+      // Process in background without awaiting - this will now send progress message immediately
+generateImageAndSendToUser(
+  { ...decryptedBody, userPhone },
+  actualImageData,
+  product_category.trim(),
+  scene_description && scene_description.trim() ? scene_description.trim() : null,
+  price_overlay && price_overlay.trim() ? price_overlay.trim() : null
+).then(async (imageUrl) => {
+  console.log('✅ Background image generation completed:', imageUrl);
+  
+  // Deduct credit after successful generation
+  if (userPhone) {
+    const deductionResult = await deductUserCredits(userPhone, 1);
+    if (deductionResult.success) {
+      console.log('💰 Credit deducted successfully. New balance:', deductionResult.newBalance);
+      
+      // Step 1: Send credit message first (after image delivery)
+      try {
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for image delivery
+        const balanceUpdateMessage = `✅ Image generated successfully! 1 credit used.\n\n💰 Your remaining balance: ${deductionResult.newBalance} credits`;
+        await sendWhatsAppTextMessage(userPhone, balanceUpdateMessage);
+        console.log('✅ Balance update message sent via WhatsApp');
+      } catch (error) {
+        console.error('❌ Failed to send balance update message:', error);
+      }
+      
+      // Step 2: Send buttons after credit message
+      try {
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait after credit message
+        await sendWhatsAppFollowUpMessage(userPhone);
+        console.log('✅ Follow-up buttons sent successfully');
+      } catch (followUpError) {
+        console.error('❌ Failed to send follow-up message:', followUpError);
+      }
+    } else {
+      console.error('❌ Failed to deduct credit:', deductionResult.error);
+    }
+  }
+}).catch(async (error) => {
+  console.error('❌ Background image generation failed:', error);
+  // Error handling is now done inside generateImageAndSendToUser function
+});
     // Return success screen immediately
     return { 
       screen: 'SUCCESS_SCREEN', 
