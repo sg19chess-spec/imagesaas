@@ -296,8 +296,10 @@ if (leadData.phoneNumber) {
   // Update this part in your BSP lead handler:
 
 try {
-  // Send welcome message first for new leads
-  const welcomeMessage = `🎉 Welcome ${leadData.firstName || 'there'} to *Bluepix*! 
+  // Only send welcome message to NEW users
+  if (supabaseResult.isNew) {
+    console.log('🆕 New user detected - sending welcome message');
+    const welcomeMessage = `🎉 Welcome ${leadData.firstName || 'there'} to *Bluepix*! 
 
 I'm your AI Product Image Generator assistant from Bluesquare Group. *Bluepix* is developed at the incubation center of *Gnanamani College of Technology*.
 
@@ -308,51 +310,51 @@ I can help you transform your regular product photos into stunning, professional
 - Add professional backgrounds and lighting
 - Include pricing, offers, or contact details
 - Generate multiple variations
-You  get *3 free image credits* to explore
+You get *3 free image credits* to explore
 Let's get started with your first amazing image! 🚀`;
 
-  await sendWhatsAppTextMessage(leadData.phoneNumber, welcomeMessage);
-  console.log('✅ Welcome message sent successfully');
-  
-  // Wait a moment before sending the Flow
-  setTimeout(async () => {
+    await sendWhatsAppTextMessage(leadData.phoneNumber, welcomeMessage);
+    console.log('✅ Welcome message sent to NEW user');
+    
+    // Wait before sending Flow for new users
+    setTimeout(async () => {
+      try {
+        const flowId = process.env.WHATSAPP_FLOW_ID;
+        if (!flowId) {
+          throw new Error('WHATSAPP_FLOW_ID environment variable is not set');
+        }
+        
+        const flowResponse = await sendWhatsAppFlowMessage(
+          leadData.phoneNumber, 
+          flowId, 
+          leadData.firstName
+        );
+        console.log('✅ Flow sent to NEW user');
+      } catch (flowError) {
+        console.error('❌ Failed to send Flow to NEW user:', flowError);
+      }
+    }, 2000);
+    
+  } else {
+    // Returning user - send Flow immediately without welcome message
+    console.log('👤 Returning user detected - sending Flow only');
+    
     try {
       const flowId = process.env.WHATSAPP_FLOW_ID;
-      
       if (!flowId) {
         throw new Error('WHATSAPP_FLOW_ID environment variable is not set');
       }
-      
-      console.log('Sending Flow with parameters:', {
-        phone: leadData.phoneNumber,
-        flowId: flowId,
-        firstName: leadData.firstName
-      });
       
       const flowResponse = await sendWhatsAppFlowMessage(
         leadData.phoneNumber, 
         flowId, 
         leadData.firstName
       );
-      
-      console.log('✅ Flow message sent successfully:', JSON.stringify(flowResponse, null, 2));
+      console.log('✅ Flow sent to RETURNING user');
     } catch (flowError) {
-      console.error('❌ Failed to send Flow message:', {
-        error: flowError.message,
-        stack: flowError.stack,
-        leadData: {
-          phone: leadData.phoneNumber,
-          name: leadData.firstName,
-          message: leadData.userMessage
-        },
-        envVars: {
-          hasFlowId: !!process.env.WHATSAPP_FLOW_ID,
-          hasToken: !!process.env.WHATSAPP_TOKEN,
-          hasPhoneId: !!process.env.WHATSAPP_PHONE_NUMBER_ID
-        }
-      });
+      console.error('❌ Failed to send Flow to RETURNING user:', flowError);
     }
-  }, 2000);
+  }
   
 } catch (flowError) {
   console.error('❌ Failed to send Flow message:', {
