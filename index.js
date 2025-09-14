@@ -908,7 +908,7 @@ function createImageCaption(productCategory, priceOverlay, leadInfo) {
     caption += ` — ${priceOverlay.trim()}`;
   }
   
-  caption += '✨';
+  caption += '✨ ,Try Bluepix AI @ http://bit.ly/4poDBMD';
   
   return caption;
 }
