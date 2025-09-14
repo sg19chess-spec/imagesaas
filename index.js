@@ -296,25 +296,64 @@ if (leadData.phoneNumber) {
   // Update this part in your BSP lead handler:
 
 try {
-  const flowId = process.env.WHATSAPP_FLOW_ID;
+  // Send welcome message first for new leads
+  const welcomeMessage = `🎉 Welcome ${leadData.firstName || 'there'} to *Bluepix*! 
+
+I'm your AI Product Image Generator assistant from Bluesquare Group. *Bluepix* is developed at the incubation center of *Gnanamani College of Technology*.
+
+I can help you transform your regular product photos into stunning, professional marketing images in seconds!
+
+✨ What Bluepix can do for you:
+- Enhance product photos with *AI*
+- Add professional backgrounds and lighting
+- Include pricing, offers, or contact details
+- Generate multiple variations
+
+Let's get started with your first amazing image! 🚀`;
+
+  await sendWhatsAppTextMessage(leadData.phoneNumber, welcomeMessage);
+  console.log('✅ Welcome message sent successfully');
   
-  if (!flowId) {
-    throw new Error('WHATSAPP_FLOW_ID environment variable is not set');
-  }
+  // Wait a moment before sending the Flow
+  setTimeout(async () => {
+    try {
+      const flowId = process.env.WHATSAPP_FLOW_ID;
+      
+      if (!flowId) {
+        throw new Error('WHATSAPP_FLOW_ID environment variable is not set');
+      }
+      
+      console.log('Sending Flow with parameters:', {
+        phone: leadData.phoneNumber,
+        flowId: flowId,
+        firstName: leadData.firstName
+      });
+      
+      const flowResponse = await sendWhatsAppFlowMessage(
+        leadData.phoneNumber, 
+        flowId, 
+        leadData.firstName
+      );
+      
+      console.log('✅ Flow message sent successfully:', JSON.stringify(flowResponse, null, 2));
+    } catch (flowError) {
+      console.error('❌ Failed to send Flow message:', {
+        error: flowError.message,
+        stack: flowError.stack,
+        leadData: {
+          phone: leadData.phoneNumber,
+          name: leadData.firstName,
+          message: leadData.userMessage
+        },
+        envVars: {
+          hasFlowId: !!process.env.WHATSAPP_FLOW_ID,
+          hasToken: !!process.env.WHATSAPP_TOKEN,
+          hasPhoneId: !!process.env.WHATSAPP_PHONE_NUMBER_ID
+        }
+      });
+    }
+  }, 2000);
   
-  console.log('Sending Flow with parameters:', {
-    phone: leadData.phoneNumber,
-    flowId: flowId,
-    firstName: leadData.firstName
-  });
-  
-  const flowResponse = await sendWhatsAppFlowMessage(
-    leadData.phoneNumber, 
-    flowId, 
-    leadData.firstName  // Removed flowToken parameter
-  );
-  
-  console.log('✅ Flow message sent successfully:', JSON.stringify(flowResponse, null, 2));
 } catch (flowError) {
   console.error('❌ Failed to send Flow message:', {
     error: flowError.message,
@@ -855,19 +894,19 @@ function createImageCaption(productCategory, priceOverlay, leadInfo) {
   let caption = '';
   
   // Personalized greeting if we have lead info
-  if (leadInfo?.firstName) {
+  /*if (leadInfo?.firstName) {
     caption += `Hi ${leadInfo.firstName}! `;
-  }
+  }*/
   
   // Product info
-  caption += `Here's your enhanced ${productCategory}`;
+  caption += `${productCategory}`;
   
   // Price if provided
   if (priceOverlay && priceOverlay.trim()) {
     caption += ` — ${priceOverlay.trim()}`;
   }
   
-  caption += ' image! 🎨✨';
+  caption += '✨';
   
   return caption;
 }
@@ -1346,20 +1385,20 @@ async function sendWhatsAppFlowMessage(toE164, flowId, userName) {
         type: 'flow',
         header: {
           type: 'text',
-          text: 'AI Product Image Generator'
+          text: 'Bluepix AI'
         },
         body: {
           text: `Hi ${userName || 'there'}! Transform your product photos into stunning marketing images with AI!`
         },
         footer: {
-          text: 'Powered by AI - Quick & Professional'
+          text: 'Powered by Bluepix AI - Quick & Professional'
         },
         action: {
           name: 'flow',
           parameters: {
             flow_message_version: '3',
             flow_id: flowId,  // Use flow_id, not flow_name
-            flow_cta: 'Start Creating ✨',
+            flow_cta: 'Start Creating ',
             flow_token: flowToken,
             flow_action: 'navigate',
             flow_action_payload: {
@@ -1755,7 +1794,7 @@ async function sendPaymentLinkMessage(phoneNumber, paymentLink, planDetails) {
           action: {
             name: 'cta_url',
             parameters: {
-              display_text: 'Pay Now 💳',
+              display_text: 'Pay Now ',
               url: paymentLink.short_url
             }
           }
