@@ -10,6 +10,196 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
+// Replace your Razorpay webhook with this complete version:
+
+app.post('/razorpay-webhook', express.raw({type: 'application/json'}), async (req, res) => {
+  console.log('=== RAZORPAY WEBHOOK ===');
+  
+  // Debug logging
+  console.log('Debug info:');
+  console.log('- Body type:', typeof req.body);
+  console.log('- Is Buffer:', Buffer.isBuffer(req.body));
+  console.log('- Body length:', req.body?.length);
+  console.log('- Content-Type:', req.headers['content-type']);
+  console.log('- Signature received:', req.headers['x-razorpay-signature'] ? 'Yes' : 'No');
+  console.log('- Webhook secret exists:', !!process.env.RAZORPAY_WEBHOOK_SECRET);
+  
+  try {
+    const signature = req.headers['x-razorpay-signature'];
+    const body = req.body;
+    
+    // Check if webhook secret is configured
+    if (!process.env.RAZORPAY_WEBHOOK_SECRET) {
+      console.error('❌ RAZORPAY_WEBHOOK_SECRET environment variable is not set');
+      return res.status(500).json({ error: 'Webhook secret not configured' });
+    }
+    
+    if (!signature) {
+      console.error('❌ Missing webhook signature');
+      return res.status(400).json({ error: 'Missing signature' });
+    }
+    
+    if (!Buffer.isBuffer(body)) {
+      console.error('❌ Body is not a Buffer, got:', typeof body);
+      console.error('This means the middleware order is still wrong!');
+      return res.status(400).json({ error: 'Expected Buffer body for signature verification' });
+    }
+    
+    // Calculate expected signature using HMAC SHA256
+    const expectedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET)
+      .update(body)
+      .digest('hex');
+    
+    console.log('Signature comparison:');
+    console.log('- Received: ', signature);
+    console.log('- Expected:', expectedSignature);
+    console.log('- Match:', signature === expectedSignature);
+    
+    if (signature !== expectedSignature) {
+      console.error('❌ Invalid webhook signature');
+      return res.status(400).json({ error: 'Invalid signature' });
+    }
+
+    // Parse JSON after signature verification
+    let event;
+    try {
+      event = JSON.parse(body.toString('utf8'));
+      console.log('✅ Signature verified! Event:', event.event);
+      console.log('Event ID:', req.headers['x-razorpay-event-id']);
+    } catch (parseError) {
+      console.error('❌ Failed to parse webhook JSON:', parseError);
+      return res.status(400).json({ error: 'Invalid JSON payload' });
+    }
+    
+    // Handle successful payment link payment
+    if (event.event === 'payment_link.paid') {
+      const paymentLinkEntity = event.payload.payment_link.entity;
+      const notes = paymentLinkEntity.notes;
+      
+      if (!notes?.user_phone || !notes?.credits_to_add) {
+        console.error('❌ Missing required payment notes');
+        return res.status(400).json({ error: 'Missing payment metadata' });
+      }
+
+      const userPhone = notes.user_phone;
+      const creditsToAdd = parseInt(notes.credits_to_add);
+      const planId = notes.plan_id;
+      const amountPaid = paymentLinkEntity.amount_paid / 100;
+
+      console.log('💳 Processing successful payment:', {
+        userPhone,
+        creditsToAdd,
+        planId,
+        amountPaid,
+        paymentLinkId: paymentLinkEntity.id
+      });
+
+      // Get current wallet balance
+      const currentCredits = await getLeadWallet(userPhone);
+      const newBalance = currentCredits + creditsToAdd;
+
+      // Update wallet in Supabase
+      const success = await updateLeadWallet(userPhone, newBalance);
+      
+      if (success) {
+        console.log('✅ Credits added successfully:', {
+          userPhone,
+          previousBalance: currentCredits,
+          creditsAdded: creditsToAdd,
+          newBalance
+        });
+
+        // Send success message to user
+        try {
+          const successMessage = `🎉 *Payment Successful!*\n\n💰 ₹${amountPaid} payment confirmed\n🎨 ${creditsToAdd} credits added to your account\n📊 Current Balance: ${newBalance} credits\n\nYou can now generate ${newBalance} amazing product images!`;
+          
+          await sendWhatsAppTextMessage(userPhone, successMessage);
+          console.log('✅ Payment success message sent');
+
+          // Send Flow for immediate image generation after delay
+          setTimeout(async () => {
+            try {
+              const leadInfo = getBspLead(userPhone);
+              const userName = leadInfo?.firstName || '';
+              const flowId = process.env.WHATSAPP_FLOW_ID;
+              
+              if (flowId) {
+                await sendWhatsAppFlowMessage(userPhone, flowId, userName);
+                console.log('✅ Post-payment Flow sent');
+              }
+            } catch (flowError) {
+              console.error('❌ Failed to send post-payment Flow:', flowError);
+            }
+          }, 3000);
+
+        } catch (messageError) {
+          console.error('❌ Failed to send success message:', messageError);
+        }
+      } else {
+        console.error('❌ Failed to update wallet in Supabase');
+        
+        try {
+          await sendWhatsAppTextMessage(userPhone, 
+            'Payment received but failed to update credits. Please contact support with your payment details.');
+        } catch (msgError) {
+          console.error('Failed to send error message:', msgError);
+        }
+      }
+    }
+
+    // Handle payment link expiry
+    if (event.event === 'payment_link.expired') {
+      const paymentLinkEntity = event.payload.payment_link.entity;
+      const notes = paymentLinkEntity.notes;
+      
+      if (notes?.user_phone) {
+        const userPhone = notes.user_phone;
+        const planId = notes.plan_id;
+        const creditsToAdd = notes.credits_to_add;
+
+        console.log('⏰ Payment link expired:', {
+          userPhone,
+          planId,
+          creditsToAdd,
+          paymentLinkId: paymentLinkEntity.id
+        });
+
+        try {
+          const expiredMessage = `⏰ *Payment Link Expired*\n\nYour payment link for ${creditsToAdd} credits has expired.\n\nWould you like to create a new payment link? Simply use the recharge option in our menu to get a fresh payment link.`;
+          
+          await sendWhatsAppTextMessage(userPhone, expiredMessage);
+          console.log('✅ Payment expiry message sent');
+
+          setTimeout(async () => {
+            try {
+              const leadInfo = getBspLead(userPhone);
+              const userName = leadInfo?.firstName || '';
+              const flowId = process.env.WHATSAPP_FLOW_ID;
+              
+              if (flowId) {
+                await sendWhatsAppFlowMessage(userPhone, flowId, userName);
+                console.log('✅ Post-expiry Flow sent for retry');
+              }
+            } catch (flowError) {
+              console.error('❌ Failed to send post-expiry Flow:', flowError);
+            }
+          }, 5000);
+
+        } catch (messageError) {
+          console.error('❌ Failed to send expiry message:', messageError);
+        }
+      }
+    }
+
+    // Always respond with 200 to acknowledge receipt
+    res.status(200).json({ status: 'ok' });
+    
+  } catch (error) {
+    console.error('❌ Webhook processing error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
@@ -267,166 +457,7 @@ app.get('/debug-leads', async (req, res) => {
 });
 // Razorpay webhook endpoint
 // Razorpay webhook endpoint
-app.post('/razorpay-webhook', express.raw({type: 'application/json'}), async (req, res) => {
-  console.log('=== RAZORPAY WEBHOOK ===');
-  
-  try {
-    // Verify webhook signature
-    const signature = req.headers['x-razorpay-signature'];
-    const body = req.body; // This is a Buffer from express.raw()
-    
-    if (!signature) {
-      console.error('❌ Missing webhook signature');
-      return res.status(400).json({ error: 'Missing signature' });
-    }
-    
-    // Calculate expected signature using HMAC SHA256
-    // req.body is already a Buffer, so we can use it directly
-    const expectedSignature = crypto
-      .createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET)
-      .update(body) // body is already a Buffer
-      .digest('hex');
-    
-    if (signature !== expectedSignature) {
-      console.error('❌ Invalid webhook signature');
-      return res.status(400).json({ error: 'Invalid signature' });
-    }
 
-    // Now parse the JSON from the Buffer
-    const event = JSON.parse(body.toString('utf8'));
-    console.log('Webhook event:', event.event);
-    console.log('Event ID:', req.headers['x-razorpay-event-id']); // For duplicate detection
-    
-    // Handle successful payment link payment
-    if (event.event === 'payment_link.paid') {
-      const paymentLinkEntity = event.payload.payment_link.entity;
-      const notes = paymentLinkEntity.notes;
-      
-      if (!notes?.user_phone || !notes?.credits_to_add) {
-        console.error('❌ Missing required payment notes');
-        return res.status(400).json({ error: 'Missing payment metadata' });
-      }
-
-      const userPhone = notes.user_phone;
-      const creditsToAdd = parseInt(notes.credits_to_add);
-      const planId = notes.plan_id;
-      const amountPaid = paymentLinkEntity.amount_paid / 100; // Convert from paise
-
-      console.log('💳 Processing successful payment:', {
-        userPhone,
-        creditsToAdd,
-        planId,
-        amountPaid,
-        paymentLinkId: paymentLinkEntity.id
-      });
-
-      // Get current wallet balance
-      const currentCredits = await getLeadWallet(userPhone);
-      const newBalance = currentCredits + creditsToAdd;
-
-      // Update wallet in Supabase
-      const success = await updateLeadWallet(userPhone, newBalance);
-      
-      if (success) {
-        console.log('✅ Credits added successfully:', {
-          userPhone,
-          previousBalance: currentCredits,
-          creditsAdded: creditsToAdd,
-          newBalance
-        });
-
-        // Send success message to user
-        try {
-          const successMessage = `🎉 *Payment Successful!*\n\n💰 ₹${amountPaid} payment confirmed\n🎨 ${creditsToAdd} credits added to your account\n📊 Current Balance: ${newBalance} credits\n\nYou can now generate ${newBalance} amazing product images!`;
-          
-          await sendWhatsAppTextMessage(userPhone, successMessage);
-          console.log('✅ Payment success message sent');
-
-          // Optional: Send Flow for immediate image generation after delay
-          setTimeout(async () => {
-            try {
-              const leadInfo = getBspLead(userPhone);
-              const userName = leadInfo?.firstName || '';
-              const flowId = process.env.WHATSAPP_FLOW_ID;
-              
-              if (flowId) {
-                await sendWhatsAppFlowMessage(userPhone, flowId, userName);
-                console.log('✅ Post-payment Flow sent');
-              }
-            } catch (flowError) {
-              console.error('❌ Failed to send post-payment Flow:', flowError);
-            }
-          }, 3000); // 3 second delay
-
-        } catch (messageError) {
-          console.error('❌ Failed to send success message:', messageError);
-        }
-      } else {
-        console.error('❌ Failed to update wallet in Supabase');
-        
-        // Send error message to user
-        try {
-          await sendWhatsAppTextMessage(userPhone, 
-            'Payment received but failed to update credits. Please contact support with your payment details.');
-        } catch (msgError) {
-          console.error('Failed to send error message:', msgError);
-        }
-      }
-    }
-
-    // Handle payment link expiry
-    if (event.event === 'payment_link.expired') {
-      const paymentLinkEntity = event.payload.payment_link.entity;
-      const notes = paymentLinkEntity.notes;
-      
-      if (notes?.user_phone) {
-        const userPhone = notes.user_phone;
-        const planId = notes.plan_id;
-        const creditsToAdd = notes.credits_to_add;
-
-        console.log('⏰ Payment link expired:', {
-          userPhone,
-          planId,
-          creditsToAdd,
-          paymentLinkId: paymentLinkEntity.id
-        });
-
-        try {
-          const expiredMessage = `⏰ *Payment Link Expired*\n\nYour payment link for ${creditsToAdd} credits has expired.\n\nWould you like to create a new payment link? Simply use the recharge option in our menu to get a fresh payment link.`;
-          
-          await sendWhatsAppTextMessage(userPhone, expiredMessage);
-          console.log('✅ Payment expiry message sent');
-
-          // Optional: Send Flow to restart the process after delay
-          setTimeout(async () => {
-            try {
-              const leadInfo = getBspLead(userPhone);
-              const userName = leadInfo?.firstName || '';
-              const flowId = process.env.WHATSAPP_FLOW_ID;
-              
-              if (flowId) {
-                await sendWhatsAppFlowMessage(userPhone, flowId, userName);
-                console.log('✅ Post-expiry Flow sent for retry');
-              }
-            } catch (flowError) {
-              console.error('❌ Failed to send post-expiry Flow:', flowError);
-            }
-          }, 5000); // 5 second delay
-
-        } catch (messageError) {
-          console.error('❌ Failed to send expiry message:', messageError);
-        }
-      }
-    }
-
-    // Always respond with 200 to acknowledge receipt
-    res.status(200).json({ status: 'ok' });
-    
-  } catch (error) {
-    console.error('❌ Webhook processing error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 // --- All Your Functions Below ---
 
 // Store BSP lead data
