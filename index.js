@@ -1491,11 +1491,9 @@ async function handleDataExchange(decryptedBody) {
       });
 
       return {
-        screen: 'RECHARGE_SCREEN',
-        data: { 
-          success_message: `Payment link for ${selectedPlan.name} has been sent to your WhatsApp! Complete the payment to add ${selectedPlan.credits} credits to your account.`
-        }
-      };
+  screen: 'PAYMENT_INITIATED',
+  data: {}
+};
 
     } catch (error) {
       console.error('❌ Payment link creation failed:', error);
