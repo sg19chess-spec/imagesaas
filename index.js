@@ -308,7 +308,7 @@ I can help you transform your regular product photos into stunning, professional
 - Add professional backgrounds and lighting
 - Include pricing, offers, or contact details
 - Generate multiple variations
-
+You  get *3 free image credits* to explore
 Let's get started with your first amazing image! 🚀`;
 
   await sendWhatsAppTextMessage(leadData.phoneNumber, welcomeMessage);
