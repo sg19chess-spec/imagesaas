@@ -1151,43 +1151,37 @@ function createSimplePrompt(productCategory, sceneDescription = null, priceOverl
   if (!productCategory || !productCategory.trim()) {
     return "Error: Product name is required";
   }
-
-  let prompt = `You are a world-class commercial photographer and advertising designer. Create a premium-quality, photorealistic visual for: ${productCategory.trim()}.`;
   
+  let prompt = `You are a world-class commercial photographer and advertising designer. Create a premium-quality, photorealistic visual for: ${productCategory.trim()}.`;
   // Auto-framing
   prompt += ` Automatically choose the most flattering framing (close-up, medium, or long shot) for this product category.`;
-
   // Scene handling
   if (sceneDescription && sceneDescription.trim()) {
     prompt += ` Place it in this photorealistic setting: ${sceneDescription.trim()}.`;
   } else {
     prompt += ` Place it in a realistic environment - either a professional studio setup with soft lighting, or a lifestyle setting showing authentic real-world use.`;
   }
-
   prompt += ` Ensure sharp focus, DSLR-quality realism, natural shadows, accurate materials, and lifelike textures.`;
-
-  // Overlay handling
+  // Enhanced overlay handling with contrast
   if (priceOverlay && priceOverlay.trim()) {
-    prompt += `Keep the product and scene 100% photorealistic.`;
-prompt += `Overlay ONLY this exact text: "${priceOverlay.trim()}" in a professional modern advertising poster style.`;
-prompt += `Ensure the exact text is used—do not alter any letters, numbers, spellings, or formatting.`;
-prompt += `Ensure all text is highly readable with maximum contrast using drop shadows, outlines, or background shapes, while using colors that harmonize with the product and scene—avoid overly bright or clashing colors.`;
-prompt += `Place the brand name in a visible area near the product, top-left or similar, ensuring legibility and professional presentation.`;
-prompt += `Place prices/discounts in bold, eye-catching badges or ribbons, harmonized with the scene, top-right corner or near the product, prominent enough to read but never covering the product.`;
-prompt += `Highlight offers with complementary accent badges near prices or in visible corners, matching scene colors and maintaining visual hierarchy.`;
-prompt += `Place phone numbers in sleek banners at the bottom, readable and harmonized with the scene, consistent in style with other badges.`;
-prompt += `Place contact info in contrasting badges integrated with scene colors, readable, consistent in style, at the bottom, never plain text.`;
-prompt += `Ensure no text covers the product or obscures key visual details.`;
-prompt += `Ensure the final layout is visually appealing, professionally balanced, and all elements harmonize with the product, scene, and text.`;
-
+    prompt += ` Keep the product and scene 100% photorealistic. Then overlay ONLY this exact text: "${priceOverlay.trim()}" in professional advertising poster style.`;
+    prompt += ` Do not add any extra text beyond what was provided.`;
+    prompt += ` CRITICAL: Ensure maximum text contrast - use contrasting colors, drop shadows, outlines, or background shapes to make text pop against any background.`;
+    prompt += ` Use typography intelligently:`;
+    prompt += ` - Brand names → elegant fonts with strong contrast`;
+    prompt += ` - Prices/discounts → bold, eye-catching badges or banners with high contrast`;
+    prompt += ` - Offers → highlighted with striking accents and contrasting backgrounds`;
+    prompt += ` - Phone numbers → create prominent banner/ribbon style with contrasting background color`;
+    prompt += ` - Contact info → place in contrasting banner or badge format, never plain text`;
+    prompt += ` Position the text strategically (e.g., top corner, side bar, or bottom strip) without covering the product.`;
+    prompt += ` All text must be easily readable with strong visual contrast against the background.`;
   } else {
     prompt += ` Deliver pure commercial photography with zero text overlay.`;
   }
-
   // Aspect ratio hint
   prompt += ` Format the output with aspect ratio ${aspectRatio} (suitable for digital ads).`;
   prompt += ` Final result: The image must be indistinguishable from a real professional product photo, with authentic lighting, textures, and marketing-quality presentation.`;
-
+  
   return prompt;
 }
 
