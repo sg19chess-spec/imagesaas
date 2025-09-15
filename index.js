@@ -1168,18 +1168,18 @@ function createSimplePrompt(productCategory, sceneDescription = null, priceOverl
 
   // Overlay handling
   if (priceOverlay && priceOverlay.trim()) {
-    prompt += ` Keep the product and scene 100% photorealistic. Overlay ONLY this exact text: "${priceOverlay.trim()}" in a professional modern advertising poster style.`;
-    prompt += `  Use the exact text provided - do not alter any letters, numbers, spellings, or formatting whatsoever.`;
-    prompt += ` Ensure all text is highly readable with maximum contrast using drop shadows, outlines, or background shapes, while using colors that harmonize with the product and scene—avoid overly bright or clashing colors.`;
-    prompt += ` Place the brand name in a visible area near the product, top-left or similar, ensuring legibility and professional presentation.`;
-    prompt += ` Arrange text elements with professional marketing hierarchy and visual balance.`;
-    prompt += ` Place prices/discounts in bold, eye-catching badges or ribbons harmonized with the scene, top-right corner or near the product, drawing the viewer's eye first.`;
-    prompt += ` Highlight offers with complementary accents near prices or in visible corners without overlapping the product.`;
-    prompt += ` Place phone numbers in prominent banner/ribbon style at the bottom , readable and harmonized with the scene.`;
-    prompt += ` Place contact info in contrasting badges integrated with scene colors at the bottom  never plain text.`;
-    prompt += ` Ensure no text covers the product or obscures key visual details.`;
-    prompt += ` Prioritize visual hierarchy according to the "${priceOverlay.trim()}"`;
-    prompt += ` Ensure the final layout is visually appealing and resembles a professional advertising poster and all the element matches product , scene and text.`;
+    prompt += `Keep the product and scene 100% photorealistic.`;
+prompt += `Overlay ONLY this exact text: "${priceOverlay.trim()}" in a professional modern advertising poster style.`;
+prompt += `Ensure the exact text is used—do not alter any letters, numbers, spellings, or formatting.`;
+prompt += `Ensure all text is highly readable with maximum contrast using drop shadows, outlines, or background shapes, while using colors that harmonize with the product and scene—avoid overly bright or clashing colors.`;
+prompt += `Place the brand name in a visible area near the product, top-left or similar, ensuring legibility and professional presentation.`;
+prompt += `Place prices/discounts in bold, eye-catching badges or ribbons, harmonized with the scene, top-right corner or near the product, prominent enough to read but never covering the product.`;
+prompt += `Highlight offers with complementary accent badges near prices or in visible corners, matching scene colors and maintaining visual hierarchy.`;
+prompt += `Place phone numbers in sleek banners at the bottom, readable and harmonized with the scene, consistent in style with other badges.`;
+prompt += `Place contact info in contrasting badges integrated with scene colors, readable, consistent in style, at the bottom, never plain text.`;
+prompt += `Ensure no text covers the product or obscures key visual details.`;
+prompt += `Ensure the final layout is visually appealing, professionally balanced, and all elements harmonize with the product, scene, and text.`;
+
   } else {
     prompt += ` Deliver pure commercial photography with zero text overlay.`;
   }
