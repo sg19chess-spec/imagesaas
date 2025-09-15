@@ -1169,17 +1169,17 @@ function createSimplePrompt(productCategory, sceneDescription = null, priceOverl
   // Overlay handling
   if (priceOverlay && priceOverlay.trim()) {
     prompt += ` Keep the product and scene 100% photorealistic. Overlay ONLY this exact text: "${priceOverlay.trim()}" in a professional modern advertising poster style.`;
-    prompt += ` Do not add any extra text.`;
+    prompt += `  Use the exact text provided - do not alter any letters, numbers, spellings, or formatting whatsoever.`;
     prompt += ` Ensure all text is highly readable with maximum contrast using drop shadows, outlines, or background shapes, while using colors that harmonize with the product and scene—avoid overly bright or clashing colors.`;
     prompt += ` Place the brand name in a visible area near the product, top-left or similar, ensuring legibility and professional presentation.`;
     prompt += ` Arrange text elements with professional marketing hierarchy and visual balance.`;
     prompt += ` Place prices/discounts in bold, eye-catching badges or ribbons harmonized with the scene, top-right corner or near the product, drawing the viewer's eye first.`;
     prompt += ` Highlight offers with complementary accents near prices or in visible corners without overlapping the product.`;
-    prompt += ` Place phone numbers in prominent banner/ribbon style at the bottom or side strip, readable and harmonized with the scene.`;
-    prompt += ` Place contact info in contrasting badges integrated with scene colors at the bottom or side strip, never plain text.`;
+    prompt += ` Place phone numbers in prominent banner/ribbon style at the bottom , readable and harmonized with the scene.`;
+    prompt += ` Place contact info in contrasting badges integrated with scene colors at the bottom  never plain text.`;
     prompt += ` Ensure no text covers the product or obscures key visual details.`;
-    prompt += ` Prioritize visual hierarchy: price first, then offers, brand, then contact info.`;
-    prompt += ` Ensure the final layout is visually appealing and resembles a professional advertising poster.`;
+    prompt += ` Prioritize visual hierarchy according to the "${priceOverlay.trim()}"`;
+    prompt += ` Ensure the final layout is visually appealing and resembles a professional advertising poster and all the element matches product , scene and text.`;
   } else {
     prompt += ` Deliver pure commercial photography with zero text overlay.`;
   }
