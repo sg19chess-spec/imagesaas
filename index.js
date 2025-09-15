@@ -1162,29 +1162,78 @@ function createSimplePrompt(productCategory, sceneDescription = null, priceOverl
     prompt += ` Place it in a realistic environment - either a professional studio setup with soft lighting, or a lifestyle setting showing authentic real-world use.`;
   }
   prompt += ` Ensure sharp focus, DSLR-quality realism, natural shadows, accurate materials, and lifelike textures.`;
-  // Enhanced overlay handling with contrast
+  
+  // Enhanced overlay handling with sophisticated typography and visual design
   if (priceOverlay && priceOverlay.trim()) {
-    prompt += ` Keep the product and scene 100% photorealistic. Then overlay ONLY this exact text: "${priceOverlay.trim()}" in professional advertising poster style.`;
+    prompt += ` Keep the product and scene 100% photorealistic. Then overlay ONLY this exact text: "${priceOverlay.trim()}" using premium advertising design principles.`;
     prompt += ` Do not add any extra text beyond what was provided.`;
-    prompt += ` CRITICAL: Ensure maximum text contrast - use contrasting colors, drop shadows, outlines, or background shapes to make text pop against any background.`;
-    prompt += ` Use typography intelligently:`;
-    prompt += ` - Brand names → elegant fonts with strong contrast`;
-    prompt += ` - Prices/discounts → bold, eye-catching badges or banners with high contrast`;
-    prompt += ` - Offers → highlighted with striking accents and contrasting backgrounds`;
-    prompt += ` - Phone numbers → create prominent banner/ribbon style with contrasting background color`;
-    prompt += ` - Contact info → place in contrasting banner or badge format, never plain text`;
-    prompt += ` Position the text strategically (e.g., top corner, side bar, or bottom strip) without covering the product.`;
-    prompt += ` All text must be easily readable with strong visual contrast against the background.`;
+    
+    // TYPOGRAPHY HIERARCHY & FONTS
+    prompt += ` TYPOGRAPHY HIERARCHY - Apply intelligent text styling based on content type:`;
+    prompt += ` • BRAND NAMES: Use elegant serif fonts (Trajan Pro, Optima, or Didot style) with refined letter-spacing, positioned as primary focal point`;
+    prompt += ` • PRICES/DISCOUNTS: Bold sans-serif fonts (Helvetica Black, Impact, or Futura Extra Bold) with increased scale and weight for maximum impact`;
+    prompt += ` • PROMOTIONAL TEXT ("SALE", "NEW", "LIMITED"): Condensed bold fonts with ALL CAPS treatment for urgency`;
+    prompt += ` • CONTACT INFO: Clean, readable sans-serif fonts (Arial, Calibri) in smaller but still prominent sizing`;
+    prompt += ` • DESCRIPTIONS: Medium-weight fonts with optimal line spacing for readability`;
+    
+    // COLOR SYSTEMS & CONTRAST
+    prompt += ` COLOR & CONTRAST MASTERY:`;
+    prompt += ` • Use high-contrast color pairs: white text on dark backgrounds, dark text on light backgrounds`;
+    prompt += ` • Apply brand-appropriate accent colors: luxury gold/black, vibrant red/white, tech blue/silver combinations`;
+    prompt += ` • Implement color psychology: red for urgency/sales, blue for trust/tech, gold for premium/luxury`;
+    prompt += ` • Ensure WCAG AAA contrast ratios (7:1 minimum) for all text elements`;
+    prompt += ` • Use complementary color schemes that enhance product visibility`;
+    
+    // RIBBONS & BANNERS
+    prompt += ` RIBBON & BANNER DESIGN:`;
+    prompt += ` • CORNER RIBBONS: Diagonal ribbons for "NEW", "SALE", or percentage discounts with folded shadow effects`;
+    prompt += ` • HORIZONTAL BANNERS: Full-width strips across top/bottom for brand names or major promotions`;
+    prompt += ` • VERTICAL SIDE STRIPS: Elegant side panels for contact information or secondary messaging`;
+    prompt += ` • CURVED RIBBONS: Flowing banner shapes for premium/luxury positioning`;
+    prompt += ` • All ribbons must have realistic shadows, gradients, and dimensional appearance`;
+    
+    // BADGES & SEALS
+    prompt += ` BADGE & SEAL SYSTEMS:`;
+    prompt += ` • CIRCULAR BADGES: For prices, discounts, or quality seals with metallic or glossy finishes`;
+    prompt += ` • SHIELD BADGES: For guarantees, certifications, or premium positioning`;
+    prompt += ` • STAR BURST BADGES: For "BEST SELLER", "TOP RATED", or explosive promotions`;
+    prompt += ` • GEOMETRIC BADGES: Modern hexagon, diamond, or angular shapes for tech/modern products`;
+    prompt += ` • Apply realistic lighting effects, drop shadows, and material textures to all badges`;
+    
+    // VISUAL HIERARCHY & COMPOSITION
+    prompt += ` VISUAL HIERARCHY RULES:`;
+    prompt += ` • PRIMARY: Largest, boldest element (usually price or main offer) - positioned in golden ratio zones`;
+    prompt += ` • SECONDARY: Brand name or product name - 70% size of primary, complementary positioning`;
+    prompt += ` • TERTIARY: Supporting information - 50% size of primary, subtle but readable`;
+    prompt += ` • Create clear reading path using size, color, and positioning to guide eye movement`;
+    prompt += ` • Maintain generous white space around text elements for breathing room`;
+    
+    // ADVANCED VISUAL EFFECTS
+    prompt += ` PREMIUM VISUAL EFFECTS:`;
+    prompt += ` • Apply subtle drop shadows (2-4px blur) for text separation from background`;
+    prompt += ` • Use inner shadows and highlights for dimensional badge/ribbon effects`;
+    prompt += ` • Implement gradient overlays on backgrounds behind text for enhanced readability`;
+    prompt += ` • Add subtle glow effects for premium/luxury text treatments`;
+    prompt += ` • Apply realistic material textures (metallic, glossy, matte) to design elements`;
+    
+    // POSITIONING & LAYOUT
+    prompt += ` STRATEGIC POSITIONING:`;
+    prompt += ` • Never obscure the product - position text in negative space or background areas`;
+    prompt += ` • Use rule of thirds for optimal text placement`;
+    prompt += ` • Create balanced composition with text as supporting visual element`;
+    prompt += ` • Ensure all text remains fully readable at thumbnail sizes`;
+    
+    prompt += ` All text must achieve professional advertising standards with crystal-clear legibility and sophisticated visual appeal.`;
   } else {
     prompt += ` Deliver pure commercial photography with zero text overlay.`;
   }
+  
   // Aspect ratio hint
   prompt += ` Format the output with aspect ratio ${aspectRatio} (suitable for digital ads).`;
   prompt += ` Final result: The image must be indistinguishable from a real professional product photo, with authentic lighting, textures, and marketing-quality presentation.`;
   
   return prompt;
 }
-
 // Simplified Gemini API call
 async function generateImageFromAi(productImageBase64, productCategory, sceneDescription = null, priceOverlay = null) {
   console.log('=== GENERATE IMAGE FROM AI ===');
