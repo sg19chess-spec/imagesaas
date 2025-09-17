@@ -1635,11 +1635,7 @@ try {
   }
 } catch (error) {
   console.error('❌ Failed to send balance update message:', error);
-}
-        
-      } catch (error) {
-        console.error('❌ Failed to send balance update message:', error);
-      }      
+}   
     } else {
       console.error('❌ Failed to deduct credit:', deductionResult.error);
     }
