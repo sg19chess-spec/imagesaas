@@ -117,22 +117,6 @@ app.post('/razorpay-webhook', express.raw({type: 'application/json'}), async (re
           await sendWhatsAppTextMessage(userPhone, successMessage);
           console.log('✅ Payment success message sent');
 
-          // Send Flow for immediate image generation after delay
-          setTimeout(async () => {
-            try {
-              const leadInfo = getBspLead(userPhone);
-              const userName = leadInfo?.firstName || '';
-              const flowId = process.env.WHATSAPP_FLOW_ID;
-              
-              if (flowId) {
-                await sendWhatsAppFlowMessage(userPhone, flowId, userName);
-                console.log('✅ Post-payment Flow sent');
-              }
-            } catch (flowError) {
-              console.error('❌ Failed to send post-payment Flow:', flowError);
-            }
-          }, 3000);
-
         } catch (messageError) {
           console.error('❌ Failed to send success message:', messageError);
         }
@@ -171,20 +155,7 @@ app.post('/razorpay-webhook', express.raw({type: 'application/json'}), async (re
           await sendWhatsAppTextMessage(userPhone, expiredMessage);
           console.log('✅ Payment expiry message sent');
 
-          setTimeout(async () => {
-            try {
-              const leadInfo = getBspLead(userPhone);
-              const userName = leadInfo?.firstName || '';
-              const flowId = process.env.WHATSAPP_FLOW_ID;
-              
-              if (flowId) {
-                await sendWhatsAppFlowMessage(userPhone, flowId, userName);
-                console.log('✅ Post-expiry Flow sent for retry');
-              }
-            } catch (flowError) {
-              console.error('❌ Failed to send post-expiry Flow:', flowError);
-            }
-          }, 5000);
+          
 
         } catch (messageError) {
           console.error('❌ Failed to send expiry message:', messageError);
@@ -1643,49 +1614,28 @@ generateImageAndSendToUser(
       console.log('💰 Credit deducted successfully. New balance:', deductionResult.newBalance);
       
       // Send credit update message after image delivery
+      // Send credit update message after image delivery
+try {
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  const balanceUpdateMessage = `✅ Image generated successfully! 1 credit used.\n\n💰 Your remaining balance: ${deductionResult.newBalance} credits`;
+  await sendWhatsAppTextMessage(userPhone, balanceUpdateMessage);
+  console.log('✅ Balance update message sent via WhatsApp');
+  
+  // Check if user has no credits left and send recharge suggestion
+  if (deductionResult.newBalance <= 0) {
+    setTimeout(async () => {
       try {
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for image delivery
-        const balanceUpdateMessage = `✅ Image generated successfully! 1 credit used.\n\n💰 Your remaining balance: ${deductionResult.newBalance} credits`;
-        await sendWhatsAppTextMessage(userPhone, balanceUpdateMessage);
-        console.log('✅ Balance update message sent via WhatsApp');
-        
-        // Auto-send new Flow after balance message (if user has credits)
-        if (deductionResult.newBalance > 0) {
-          setTimeout(async () => {
-            try {
-              const leadInfo = getBspLead(userPhone);
-              const userName = leadInfo?.firstName || '';
-              const flowId = process.env.WHATSAPP_FLOW_ID;
-              
-              if (flowId) {
-                await sendWhatsAppFlowMessage(userPhone, flowId, userName);
-                console.log('✅ Auto-Flow sent for another image generation');
-              }
-            } catch (flowError) {
-              console.error('❌ Failed to send auto-Flow:', flowError);
-            }
-          }, 3000); // 3 seconds after balance message
-        } else {
-          // If no credits left, suggest recharge
-          setTimeout(async () => {
-            try {
-              const rechargeMessage = `🔋 You've used all your credits! To generate more amazing images, use our recharge option to add more credits to your account.`;
-              await sendWhatsAppTextMessage(userPhone, rechargeMessage);
-              
-              // Send Flow anyway so they can see recharge option
-              const leadInfo = getBspLead(userPhone);
-              const userName = leadInfo?.firstName || '';
-              const flowId = process.env.WHATSAPP_FLOW_ID;
-              
-              if (flowId) {
-                await sendWhatsAppFlowMessage(userPhone, flowId, userName);
-                console.log('✅ Flow sent for recharge option');
-              }
-            } catch (error) {
-              console.error('❌ Failed to send recharge flow:', error);
-            }
-          }, 3000);
-        }
+        const rechargeMessage = `🔋 You've used all your credits! To generate more amazing images, use our recharge option to add more credits to your account.`;
+        await sendWhatsAppTextMessage(userPhone, rechargeMessage);
+        console.log('✅ Recharge suggestion sent');
+      } catch (error) {
+        console.error('❌ Failed to send recharge message:', error);
+      }
+    }, 3000);
+  }
+} catch (error) {
+  console.error('❌ Failed to send balance update message:', error);
+}
         
       } catch (error) {
         console.error('❌ Failed to send balance update message:', error);
