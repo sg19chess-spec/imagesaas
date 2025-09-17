@@ -868,20 +868,7 @@ return imageUrl;
 function createImageCaption(productCategory, priceOverlay, leadInfo) {
   let caption = '';
   
-  // Personalized greeting if we have lead info
-  /*if (leadInfo?.firstName) {
-    caption += `Hi ${leadInfo.firstName}! `;
-  }*/
-  
-  // Product info
-  caption += `${productCategory}`;
-  
-  // Price if provided
-  if (priceOverlay && priceOverlay.trim()) {
-    caption += ` — ${priceOverlay.trim()}`;
-  }
-  
-  caption += '✨ ,Try Bluepix AI @ https://wa.link/kkzdw4';
+  caption += 'AI made poster in 30 s 🚀\n ,Try Bluepix AI for free @ https://wa.link/kkzdw4 ✨' ;
   
   return caption;
 }
