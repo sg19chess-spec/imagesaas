@@ -272,7 +272,7 @@ try {
     console.log('🆕 New user detected - sending welcome message');
     const welcomeMessage = `🎉 Welcome ${leadData.firstName || 'there'} to *Bluepix*! 
 
-I'm your AI Product Image Generator assistant from Bluesquare Group. *Bluepix* is developed at the incubation center of *Gnanamani College of Technology*.
+I'm your AI Product Image Generator assistant from Bluesquare Group. *Bluepix* is developed at the incubation center of *Gnanamani College of Technology* https://gct.org.in/.
 
 I can help you transform your regular product photos into stunning, professional marketing images in seconds!
 
@@ -868,7 +868,7 @@ return imageUrl;
 function createImageCaption(productCategory, priceOverlay, leadInfo) {
   let caption = '';
   
-  caption += 'AI made poster in 30 s 🚀\n ,Try Bluepix AI for free @ https://wa.link/kkzdw4 ✨' ;
+  caption += 'Poster made in 30 s 🚀,Try Bluepix AI for free @ https://wa.link/kkzdw4 ✨' ;
   
   return caption;
 }
