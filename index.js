@@ -868,7 +868,7 @@ return imageUrl;
 function createImageCaption(productCategory, priceOverlay, leadInfo) {
   let caption = '';
   
-  caption += 'Poster made in 30 s 🚀,Try Bluepix AI for free @ https://wa.link/kkzdw4 ✨' ;
+  caption += 'Poster made in 30 s 🚀,Try Bluepix AI for free @ bluesquaregroup.in/bluepix ✨' ;
   
   return caption;
 }
