@@ -253,24 +253,22 @@ app.post('/bsp-lead', async (req, res) => {
     
     // Replace the existing flow sending logic in your BSP lead handler with this:
 
+// Replace the existing flow sending logic in your BSP lead handler with this:
 if (leadData.phoneNumber) {
   console.log('✅ LEAD CAPTURED SUCCESSFULLY');
   
   const storedLead = storeBspLead(leadData);
   const supabaseResult = await persistBspLead(storedLead);
   
-  // Send Flow message with user phone embedded - ALWAYS send for new leads
   console.log('🚀 Attempting to send Flow message to user with embedded phone number');
   console.log('User Message:', leadData.userMessage);
   console.log('Flow ID from env:', process.env.WHATSAPP_FLOW_ID);
-  
-  // Update this part in your BSP lead handler:
 
-try {
-  // Only send welcome message to NEW users
-  if (supabaseResult.isNew) {
-    console.log('🆕 New user detected - sending welcome message');
-    const welcomeMessage = `🎉 Welcome ${leadData.firstName || 'there'} to *Bluepix*! 
+  try {
+    // Only send welcome message to NEW users
+    if (supabaseResult.isNew) {
+      console.log('🆕 New user detected - sending welcome message');
+      const welcomeMessage = `🎉 Welcome ${leadData.firstName || 'there'} to *Bluepix*! 
 
 I'm your AI Product Image Generator assistant from Bluesquare Group. *Bluepix* is developed at the incubation center of *Gnanamani College of Technology* https://gct.org.in/.
 
@@ -286,11 +284,45 @@ You get *3 free image credits* to explore
 By using our service, you agree to our terms: https://bluesquaregroup.in/terms-and-conditions
 Let's get started with your first amazing image! 🚀`;
 
-    await sendWhatsAppTextMessage(leadData.phoneNumber, welcomeMessage);
-    console.log('✅ Welcome message sent to NEW user');
-    
-    // Wait before sending Flow for new users
-    setTimeout(async () => {
+      await sendWhatsAppTextMessage(leadData.phoneNumber, welcomeMessage);
+      console.log('✅ Welcome message sent to NEW user');
+      
+      // Send demo video to NEW users only
+      setTimeout(async () => {
+        try {
+          const demoVideoUrl = "https://hhioxndxnpwjbtadggtv.supabase.co/storage/v1/object/sign/video/WELCOME%20TO%20BLUEPIX%20AI%20(2).mp4?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8yYjcwYzMwZS1kN2ZmLTRiZTktODlkNS1mNGU0Y2EzZmQzMWEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ2aWRlby9XRUxDT01FIFRPIEJMVUVQSVggQUkgKDIpLm1wNCIsImlhdCI6MTc1ODYxMjAwNiwiZXhwIjoyMDczOTcyMDA2fQ.8r5HqdHXw6_x3EatIzjYXroRGF5WNqx7l9Uw7CY4_dA";
+          const videoCaption = "📺 Watch this quick demo to see how Bluepix transforms your product images!";
+          
+          await sendWhatsAppVideoMessage(leadData.phoneNumber, demoVideoUrl, videoCaption);
+          console.log('🎥 Demo video sent to NEW user successfully');
+        } catch (videoError) {
+          console.error('❌ Failed to send demo video to NEW user:', videoError);
+        }
+      }, 1000); // 1 second delay after welcome message
+      
+      // Wait before sending Flow for new users  
+      setTimeout(async () => {
+        try {
+          const flowId = process.env.WHATSAPP_FLOW_ID;
+          if (!flowId) {
+            throw new Error('WHATSAPP_FLOW_ID environment variable is not set');
+          }
+          
+          const flowResponse = await sendWhatsAppFlowMessage(
+            leadData.phoneNumber, 
+            flowId, 
+            leadData.firstName
+          );
+          console.log('✅ Flow sent to NEW user');
+        } catch (flowError) {
+          console.error('❌ Failed to send Flow to NEW user:', flowError);
+        }
+      }, 3000); // 3 seconds delay to allow video to be sent first
+      
+    } else {
+      // Returning user - send Flow immediately without welcome message or video
+      console.log('👤 Returning user detected - sending Flow only');
+      
       try {
         const flowId = process.env.WHATSAPP_FLOW_ID;
         if (!flowId) {
@@ -302,49 +334,29 @@ Let's get started with your first amazing image! 🚀`;
           flowId, 
           leadData.firstName
         );
-        console.log('✅ Flow sent to NEW user');
+        console.log('✅ Flow sent to RETURNING user');
       } catch (flowError) {
-        console.error('❌ Failed to send Flow to NEW user:', flowError);
+        console.error('❌ Failed to send Flow to RETURNING user:', flowError);
       }
-    }, 2000);
-    
-  } else {
-    // Returning user - send Flow immediately without welcome message
-    console.log('👤 Returning user detected - sending Flow only');
-    
-    try {
-      const flowId = process.env.WHATSAPP_FLOW_ID;
-      if (!flowId) {
-        throw new Error('WHATSAPP_FLOW_ID environment variable is not set');
-      }
-      
-      const flowResponse = await sendWhatsAppFlowMessage(
-        leadData.phoneNumber, 
-        flowId, 
-        leadData.firstName
-      );
-      console.log('✅ Flow sent to RETURNING user');
-    } catch (flowError) {
-      console.error('❌ Failed to send Flow to RETURNING user:', flowError);
     }
+    
+  } catch (flowError) {
+    console.error('❌ Failed to send Flow message:', {
+      error: flowError.message,
+      stack: flowError.stack,
+      leadData: {
+        phone: leadData.phoneNumber,
+        name: leadData.firstName,
+        message: leadData.userMessage
+      },
+      envVars: {
+        hasFlowId: !!process.env.WHATSAPP_FLOW_ID,
+        hasToken: !!process.env.WHATSAPP_TOKEN,
+        hasPhoneId: !!process.env.WHATSAPP_PHONE_NUMBER_ID
+      }
+    });
   }
   
-} catch (flowError) {
-  console.error('❌ Failed to send Flow message:', {
-    error: flowError.message,
-    stack: flowError.stack,
-    leadData: {
-      phone: leadData.phoneNumber,
-      name: leadData.firstName,
-      message: leadData.userMessage
-    },
-    envVars: {
-      hasFlowId: !!process.env.WHATSAPP_FLOW_ID,
-      hasToken: !!process.env.WHATSAPP_TOKEN,
-      hasPhoneId: !!process.env.WHATSAPP_PHONE_NUMBER_ID
-    }
-  });
-}
   return res.status(200).json({
     success: true,
     message: 'Lead received and processed',
@@ -357,7 +369,7 @@ Let's get started with your first amazing image! 🚀`;
       subscriberId: storedLead.subscriberId,
       userMessage: storedLead.userMessage,
       stored: true,
-      flowSent: true, // You can track this based on success/failure
+      flowSent: true,
       supabase: {
         isNewLead: supabaseResult.isNew,
         walletCredits: supabaseResult.lead?.wallet || 0,
@@ -1323,10 +1335,54 @@ async function sendWhatsAppTextMessage(toE164, message) {
   }
   return data;
 }
-// Add this function to send Flow with user phone number embedded
-// Replace your existing sendWhatsAppFlowMessage function with this corrected version:
-// New function to send follow-up message with Yes/No options
 
+// Add this function right here:
+async function sendWhatsAppVideoMessage(toE164, videoUrl, caption = '') {
+  if (!toE164) throw new Error('Missing recipient phone number (E.164 format)');
+  if (!videoUrl) throw new Error('Missing video URL');
+  
+  const url = `https://graph.facebook.com/${WHATSAPP_API_VERSION}/${WHATSAPP_PHONE_NUMBER_ID}/messages`;
+  
+  const requestBody = {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to: toE164,
+    type: 'video',
+    video: {
+      link: videoUrl
+    }
+  };
+
+  // Add caption if provided
+  if (caption && caption.trim().length > 0) {
+    requestBody.video.caption = caption;
+  }
+
+  try {
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    const result = await resp.json();
+    
+    if (!resp.ok) {
+      console.error('WhatsApp Video API Error:', result);
+      throw new Error(`WhatsApp API error: ${result.error?.message || 'Unknown error'}`);
+    }
+
+    console.log('✅ WhatsApp video message sent successfully:', result);
+    return result;
+    
+  } catch (error) {
+    console.error('❌ Failed to send WhatsApp video message:', error);
+    throw error;
+  }
+}
 async function sendWhatsAppFlowMessage(toE164, flowId, userName) {
   // Use phone number as flow token for bulletproof identification
   const flowToken = toE164;
