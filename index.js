@@ -1123,7 +1123,8 @@ function createSimplePrompt(productCategory, sceneDescription = null, priceOverl
   }
   
   let prompt = `You are a world-class fashion photographer and commercial advertising designer. Create a premium-quality, photorealistic fashion visual for: ${productCategory.trim()}.`;
-  
+  prompt += ` If there is an uploaded reference image, use it as your guide - recreate the EXACT same ${productCategory} design, style, color, pattern, and details shown in the reference. Do not change the product design, only enhance the photography quality and presentation.`;
+
   // Intelligent fashion presentation logic
   prompt += ` PRESENTATION DECISION: Analyze the product type and automatically choose:`;
   prompt += ` - If it's clothing/garments (shirts, dresses, pants, jackets, etc.) → Feature an attractive model wearing the item, showing proper fit and styling`;
