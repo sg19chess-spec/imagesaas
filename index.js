@@ -1117,40 +1117,59 @@ async function uploadGeneratedImageToSupabase(base64Data, mimeType) {
 }
 
 // Simple prompt creation function
-function createSimplePrompt(productCategory, sceneDescription = null, priceOverlay = null, aspectRatio = "1:1") {
+function createFashionPrompt(productCategory, sceneDescription = null, priceOverlay = null, aspectRatio = "1:1") {
   if (!productCategory || !productCategory.trim()) {
     return "Error: Product name is required";
   }
   
-  let prompt = `You are a world-class commercial photographer and advertising designer. Create a premium-quality, photorealistic visual for: ${productCategory.trim()}.`;
-  // Auto-framing
-  prompt += ` Automatically choose the most flattering framing (close-up, medium, or long shot) for this product category.`;
-  // Scene handling
+  let prompt = `You are a world-class fashion photographer and commercial advertising designer. Create a premium-quality, photorealistic fashion visual for: ${productCategory.trim()}.`;
+  
+  // Intelligent fashion presentation logic
+  prompt += ` PRESENTATION DECISION: Analyze the product type and automatically choose:`;
+  prompt += ` - If it's clothing/garments (shirts, dresses, pants, jackets, etc.) → Feature an attractive model wearing the item, showing proper fit and styling`;
+  prompt += ` - If it's accessories (bags, shoes, jewelry, watches, belts, etc.) → Use elegant flat-lay or premium product display without models`;
+  prompt += ` - Choose the most flattering angle: full body for outfits, upper body for tops, detail shots for intricate pieces`;
+  
+  // Scene handling with fashion intelligence
   if (sceneDescription && sceneDescription.trim()) {
-    prompt += ` Place it in this photorealistic setting: ${sceneDescription.trim()}.`;
+    prompt += ` Set in this environment: ${sceneDescription.trim()}.`;
   } else {
-    prompt += ` Place it in a realistic environment - either a professional studio setup with soft lighting, or a lifestyle setting showing authentic real-world use.`;
+    prompt += ` BACKGROUND SELECTION: Choose the most appropriate setting:`;
+    prompt += ` - For accessories: Sophisticated studio with premium lighting, marble surfaces, silk draping, or luxury boutique display`;
+    prompt += ` - For clothing: Professional fashion photography studio with perfect lighting, or authentic lifestyle setting that matches the garment's purpose (office wear in professional setting, casual wear in relaxed environment, evening wear in elegant setting)`;
   }
-  prompt += ` Ensure sharp focus, DSLR-quality realism, natural shadows, accurate materials, and lifelike textures.`;
-  // Enhanced overlay handling with contrast
+  
+  // Fashion-critical technical requirements
+  prompt += ` ESSENTIAL FASHION PHOTOGRAPHY STANDARDS:`;
+  prompt += ` - Showcase fabric texture, weave, and material quality with crystal clarity`;
+  prompt += ` - For clothing: Demonstrate proper fit, drape, and how the garment naturally falls and moves`;
+  prompt += ` - Ensure perfect color accuracy - colors must appear exactly as they would in real life for online shopping`;
+  prompt += ` - Capture fine details: stitching quality, button placement, zipper details, patterns, embellishments, brand elements`;
+  prompt += ` - Use professional fashion photography lighting with soft, even illumination that enhances textures`;
+  prompt += ` - DSLR-quality sharpness with authentic material representation and natural shadows`;
+  
+  // Enhanced fashion-specific overlay handling
   if (priceOverlay && priceOverlay.trim()) {
-    prompt += ` Keep the product and scene 100% photorealistic. Then overlay ONLY this exact text: "${priceOverlay.trim()}" in professional advertising poster style.`;
+    prompt += ` Keep the fashion photography completely photorealistic and professional. Then overlay ONLY this exact text: "${priceOverlay.trim()}" in high-impact fashion advertising style.`;
     prompt += ` Do not add any extra text beyond what was provided.`;
-    prompt += ` CRITICAL: Ensure maximum text contrast - use contrasting colors, drop shadows, outlines, or background shapes to make text pop against any background.`;
-    prompt += ` Use typography intelligently:`;
-    prompt += ` - Brand names → elegant fonts with strong contrast`;
-    prompt += ` - Prices/discounts → bold, eye-catching badges or banners with high contrast`;
-    prompt += ` - Offers → highlighted with striking accents and contrasting backgrounds`;
-    prompt += ` - Phone numbers → create prominent banner/ribbon style with contrasting background color`;
-    prompt += ` - Contact info → place in contrasting banner or badge format, never plain text`;
-    prompt += ` Position the text strategically (e.g., top corner, side bar, or bottom strip) without covering the product.`;
-    prompt += ` All text must be easily readable with strong visual contrast against the background.`;
+    prompt += ` FASHION TEXT DESIGN REQUIREMENTS:`;
+    prompt += ` - Create maximum visual contrast using sophisticated drop shadows, elegant outlines, or premium background shapes`;
+    prompt += ` - For price/discount offers: Design as attractive STICKER-STYLE elements - circular badges, geometric shapes, or decorative banners that look like premium retail stickers`;
+    prompt += ` - For festival wishes (Diwali, Eid, Christmas, etc.): Create decorative STICKER overlays with festive colors and elegant borders that complement the celebration`;
+    prompt += ` - For brand names: Use elegant, high-end typography with perfect contrast and premium positioning`;
+    prompt += ` - For promotional text: Apply modern STICKER-STYLE design elements - badges, ribbons, or geometric overlays that look professionally applied`;
+    prompt += ` - For contact information: Create professional sticker-format with rounded corners, borders, and contrasting background`;
+    prompt += ` - STICKER CHARACTERISTICS: Add subtle shadows, slight 3D effect, rounded corners, and premium borders to make overlays look like high-quality retail stickers`;
+    prompt += ` - Position text strategically (top corner, side panel, bottom strip) ensuring the clothing/accessory remains the hero element`;
+    prompt += ` - Typography should feel premium and fashion-forward, matching high-end retail advertising standards`;
+    prompt += ` - All text must be instantly readable with strong visual separation from any background elements`;
   } else {
-    prompt += ` Deliver pure commercial photography with zero text overlay.`;
+    prompt += ` Create pure fashion photography with zero text overlay - let the garment/accessory be the complete visual focus.`;
   }
-  // Aspect ratio hint
-  prompt += ` Format the output with aspect ratio ${aspectRatio} (suitable for digital ads).`;
-  prompt += ` Final result: The image must be indistinguishable from a real professional product photo, with authentic lighting, textures, and marketing-quality presentation.`;
+  
+  // Final output specifications
+  prompt += ` Format the output with aspect ratio ${aspectRatio}, optimized for fashion e-commerce, social media, and digital advertising.`;
+  prompt += ` FINAL QUALITY STANDARD: The image must be indistinguishable from professional fashion magazine photography or premium online store imagery - with perfect styling, commercial-grade lighting, and fashion industry presentation standards.`;
   
   return prompt;
 }
