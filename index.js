@@ -1117,7 +1117,7 @@ async function uploadGeneratedImageToSupabase(base64Data, mimeType) {
 }
 
 // Simple prompt creation function
-function createFashionPrompt(productCategory, sceneDescription = null, priceOverlay = null, aspectRatio = "1:1") {
+function createSimplePrompt(productCategory, sceneDescription = null, priceOverlay = null, aspectRatio = "1:1") {
   if (!productCategory || !productCategory.trim()) {
     return "Error: Product name is required";
   }
