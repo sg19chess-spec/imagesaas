@@ -1178,18 +1178,24 @@ Do not change the product design, only enhance the photography quality and prese
 CRITICAL: Do not change spelling, auto-correct, or modify any letters or characters.
 
 USER-DEFINED PRIORITY SYSTEM:
-- PRIMARY (Most Important): "${elements[0]}" - Give this the largest, most prominent styling.
-- SECONDARY: ${elements[1] ? `"${elements[1]}"` : 'None'} - Medium prominence, supporting the primary.
-- TERTIARY: ${elements[2] ? `"${elements[2]}"` : 'None'} - Smaller text, complementary styling.
-- ADDITIONAL: ${elements.slice(3).length > 0 ? elements.slice(3).map(item => `"${item}"`).join(', ') : 'None'} - Subtle placement.
+- PRIMARY (Most Important): "${elements[0]}" - Largest size, most prominent styling.
+- SECONDARY: ${elements[1] ? `"${elements[1]}"` : 'None'} - Medium size, supporting the primary.
+- TERTIARY: ${elements[2] ? `"${elements[2]}"` : 'None'} - Smaller size, complementary styling.
+- ADDITIONAL: ${elements.slice(3).length > 0 ? elements.slice(3).map(item => `"${item}"`).join(', ') : 'None'} - Minimal size, subtle placement.
 
-PRIORITY-BASED DESIGN REQUIREMENTS:
-- Use VISUAL HIERARCHY: Most important element gets largest size, boldest styling, prime positioning.
-- STICKER LAYOUT: Organize elements in a cohesive multi-panel or stacked sticker design.
-- PRIMARY element should dominate the design - other elements support it.
-- Each element gets appropriate styling based on its content (festive colors for festivals, bold colors for discounts, elegant fonts for brands, clean design for contact).
-- STICKER CHARACTERISTICS: Add subtle shadows, slight 3D effect, rounded corners, and premium borders.
-- Position strategically ensuring the product remains the hero element.`;
+Z-SHAPE FLOATING LAYOUT:
+- PRIMARY: Position at top-left corner or center-top area for maximum visibility.
+- SECONDARY: Place at top-right or beside primary element for natural eye flow.
+- TERTIARY: Position at bottom-left or bottom-right corner for completion.
+- ADDITIONAL: Float near edges or layer subtly without blocking the product.
+- AVOID: Vertical stacking, center placement that competes with product.
+
+STYLING REQUIREMENTS:
+- Use visual hierarchy through size, color, and positioning to show importance.
+- Apply content-appropriate styling (festive colors for festivals, bold colors for discounts, elegant fonts for brands).
+- Add subtle shadows, slight 3D effects, rounded corners, and premium borders for sticker appearance.
+- Ensure product remains the hero element with clear space around it.
+- Typography must be readable with strong contrast against background.`;
       
     } else {
       // Single element or auto-detection fallback
