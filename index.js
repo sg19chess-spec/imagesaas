@@ -1163,76 +1163,58 @@ Do not change the product design, only enhance the photography quality and prese
 
 `;
 
-  // Overlay handling with intelligent multi-intent detection
+  // Overlay handling with user-defined priority system
   if (priceOverlay?.trim()) {
     const text = priceOverlay.trim();
     
-    // Multi-intent detection - text can have multiple types
-    const hasPriceOffer = /(%|₹|\$|Rs\.?|OFF|Sale|Discount|Buy.*Get|Starting|Flat|\d+.*%)/i.test(text);
-    const hasFestival = /(Diwali|Deepavali|Eid|Christmas|Xmas|New Year|Holi|Dussehra|Navratri|Ganesh|Durga|Karva|Valentine|Mother|Father)/i.test(text);
-    const hasContact = /(\d{10}|\d{3}[-.\s]?\d{3}[-.\s]?\d{4}|@|\.com|\.in|Call|Contact|Ph|Mobile|WhatsApp)/i.test(text);
-    const hasUrgency = /(Limited|Hurry|Today|Hours|Days|Only|Last|Ending|Expires)/i.test(text);
-    const hasBrandName = /(Textiles|Fashion|Boutique|Store|Shop|Brand|Collection|Designer|Couture|Apparels|Garments|Emporium|Showroom|Palace|House|Studio|Creations|Trends|Style|Wear|Clothing|Sarees|Silk|Cotton|Handloom|Ethnic|Traditional|Modern|Luxury|Premium|Exclusive|Signature|Original|Authentic|Royal|Classic|Elite|Heritage|Crafts|Art|Beauty|Elegance)|([A-Z][a-z]+ ?[A-Z][a-z]*)/i.test(text);
+    // Check if user provided comma-separated priority
+    const isCommaSeparated = text.includes(',');
     
-    // Determine primary intent (hierarchy: Festival > Brand > Price > Contact)
-    let primaryIntent = 'generic';
-    if (hasFestival) primaryIntent = 'festival';
-    else if (hasBrandName && !hasPriceOffer) primaryIntent = 'brand';
-    else if (hasPriceOffer) primaryIntent = 'price';
-    else if (hasContact) primaryIntent = 'contact';
-    
-    // Build styling description
-    let intents = [];
-    if (hasFestival) intents.push('FESTIVAL');
-    if (hasBrandName) intents.push('BRAND');
-    if (hasPriceOffer) intents.push('PRICE');
-    if (hasContact) intents.push('CONTACT');
-    if (hasUrgency) intents.push('URGENCY');
-    
-    prompt += `Overlay ONLY this exact text: "${text}".
+    if (isCommaSeparated) {
+      // User-defined priority system
+      const elements = text.split(',').map(item => item.trim()).filter(item => item);
+      
+      prompt += `Overlay these elements in priority order: ${elements.map((item, index) => `"${item}"`).join(', ')}.
 CRITICAL: Do not change spelling, auto-correct, or modify any letters or characters.
 
-DETECTED CONTENT: ${intents.length > 0 ? intents.join(' + ') : 'GENERIC'}
-PRIMARY INTENT: ${primaryIntent.toUpperCase()}
+USER-DEFINED PRIORITY SYSTEM:
+- PRIMARY (Most Important): "${elements[0]}" - Give this the largest, most prominent styling.
+- SECONDARY: ${elements[1] ? `"${elements[1]}"` : 'None'} - Medium prominence, supporting the primary.
+- TERTIARY: ${elements[2] ? `"${elements[2]}"` : 'None'} - Smaller text, complementary styling.
+- ADDITIONAL: ${elements.slice(3).length > 0 ? elements.slice(3).map(item => `"${item}"`).join(', ') : 'None'} - Subtle placement.
 
-MULTI-ELEMENT TEXT DESIGN REQUIREMENTS:`;
-
-    if (primaryIntent === 'festival') {
-      prompt += `
-- PRIMARY: Festival celebration styling with decorative elements, festive colors (gold, red, saffron).
-- BRAND INTEGRATION: If brand name present, style it elegantly within the festive design with premium typography.
-- SECONDARY: If price/discount is present, integrate as smaller badges within the festive design.
-- TERTIARY: Contact info should be subtle, placed at bottom in smaller, elegant font.`;
-    } else if (primaryIntent === 'brand') {
-      prompt += `
-- PRIMARY: Elegant brand name styling with premium, sophisticated typography and luxury feel.
-- Use high-end color schemes (black/gold, white/silver, navy/gold) that convey prestige and quality.
-- Brand name should be the hero element with premium positioning and elegant borders.
-- SECONDARY: Any price/contact info as supporting elements in smaller, complementary styling.`;
-    } else if (primaryIntent === 'price') {
-      prompt += `
-- PRIMARY: Bold, eye-catching discount/price styling with bright colors (red, orange, yellow).
-- BRAND INTEGRATION: If brand name present, position it prominently but elegantly alongside price offers.
-- SECONDARY: If festival mentioned, add subtle festive accents to the price design.
-- TERTIARY: Contact info in smaller text, positioned strategically without competing with price.`;
-    } else if (primaryIntent === 'contact') {
-      prompt += `
-- PRIMARY: Professional contact information design with clear, readable formatting.
-- BRAND INTEGRATION: If brand name present, style it as the main header with contact info below.
-- SECONDARY: Any price/offer info as supporting elements.`;
+PRIORITY-BASED DESIGN REQUIREMENTS:
+- Use VISUAL HIERARCHY: Most important element gets largest size, boldest styling, prime positioning.
+- STICKER LAYOUT: Organize elements in a cohesive multi-panel or stacked sticker design.
+- PRIMARY element should dominate the design - other elements support it.
+- Each element gets appropriate styling based on its content (festive colors for festivals, bold colors for discounts, elegant fonts for brands, clean design for contact).
+- STICKER CHARACTERISTICS: Add subtle shadows, slight 3D effect, rounded corners, and premium borders.
+- Position strategically ensuring the product remains the hero element.`;
+      
     } else {
-      prompt += `
-- PRIMARY: Clean, professional styling with elegant typography.
-- Use balanced design approach for mixed content.`;
+      // Single element or auto-detection fallback
+      const hasPriceOffer = /(%|₹|\$|Rs\.?|OFF|Sale|Discount|Buy.*Get|Starting|Flat|\d+.*%)/i.test(text);
+      const hasFestival = /(Diwali|Deepavali|Eid|Christmas|Xmas|New Year|Holi|Dussehra|Navratri|Ganesh|Durga|Karva|Valentine|Mother|Father)/i.test(text);
+      const hasContact = /(\d{10}|\d{3}[-.\s]?\d{3}[-.\s]?\d{4}|@|\.com|\.in|Call|Contact|Ph|Mobile|WhatsApp)/i.test(text);
+      const hasBrandName = /(Textiles|Fashion|Boutique|Store|Shop|Brand|Collection|Designer|Couture|Apparels|Garments)/i.test(text);
+      
+      // Auto-detect styling
+      let styleType = 'generic';
+      if (hasFestival) styleType = 'festival';
+      else if (hasBrandName) styleType = 'brand';
+      else if (hasPriceOffer) styleType = 'price';
+      else if (hasContact) styleType = 'contact';
+      
+      prompt += `Overlay ONLY this exact text: "${text}".
+CRITICAL: Do not change spelling, auto-correct, or modify any letters or characters.
+
+SINGLE ELEMENT DESIGN (${styleType.toUpperCase()} STYLE):
+- Apply appropriate styling based on content type.
+- STICKER CHARACTERISTICS: Add subtle shadows, slight 3D effect, rounded corners, and premium borders.
+- Position strategically ensuring the product remains the hero element.`;
     }
 
     prompt += `
-- COMPLEX TEXT HANDLING: Use visual hierarchy - most important info largest, supporting info smaller.
-- BRAND NAME TREATMENT: Always style brand names with premium typography, elegant fonts, and sophisticated presentation.
-- LAYOUT STRATEGY: Stack information vertically OR use multi-panel sticker design to organize different elements.
-- If urgency words present, add attention-grabbing elements (flashing effects, bold borders, urgent colors).
-- STICKER CHARACTERISTICS: Add subtle shadows, slight 3D effect, rounded corners, and premium borders.
-- Position strategically (corner, panel, strip) ensuring the product remains the hero element.
 - Typography must be instantly readable with maximum visual contrast and separation from background.
 
 `;
