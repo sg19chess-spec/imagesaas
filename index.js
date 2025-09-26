@@ -1122,56 +1122,130 @@ function createSimplePrompt(productCategory, sceneDescription = null, priceOverl
     return "Error: Product name is required";
   }
   
-  let prompt = `You are a world-class fashion photographer and commercial advertising designer. Create a premium-quality, photorealistic fashion visual for: ${productCategory.trim()}.`;
-  prompt += ` If there is an uploaded reference image, use it as your guide - recreate the EXACT same ${productCategory} design, style, color, pattern, and details shown in the reference. Do not change the product design, only enhance the photography quality and presentation.`;
+  let prompt = `You are a world-class fashion photographer and commercial advertising designer. 
+Create a premium-quality, photorealistic fashion visual for: ${productCategory.trim()}.
+If there is an uploaded reference image, use it as your guide - recreate the EXACT same ${productCategory} design, style, color, pattern, and details shown in the reference. 
+Do not change the product design, only enhance the photography quality and presentation.
 
-  // Intelligent fashion presentation logic
-  prompt += ` PRESENTATION DECISION: Analyze the product type and automatically choose:`;
-  prompt += ` - If it's clothing/garments (shirts, dresses, pants, jackets, etc.) → Feature an attractive model wearing the item, showing proper fit and styling`;
-  prompt += ` - If it's accessories (bags, shoes, jewelry, watches, belts, etc.) → Use elegant flat-lay or premium product display without models`;
-  prompt += ` - Choose the most flattering angle: full body for outfits, upper body for tops, detail shots for intricate pieces`;
-  
-  // Scene handling with fashion intelligence
-  if (sceneDescription && sceneDescription.trim()) {
-    prompt += ` Set in this environment: ${sceneDescription.trim()}.`;
+`;
+
+  // Prompt-based presentation decision
+  prompt += `PRESENTATION DECISION: Analyze "${productCategory.trim()}" and intelligently choose:
+- If this is clothing/garments/wearable fabric items → ALWAYS show on an attractive model with proper fit & styling.
+- If this is accessories/non-wearable items → ALWAYS use elegant flat-lay or premium product display without models.
+- Choose the best angle: full body (complete outfits), upper body (tops/jackets), detail shots (intricate pieces).
+- Be consistent: same product types should get identical presentation styles.
+
+`;
+
+  // Scene handling
+  if (sceneDescription?.trim()) {
+    prompt += `Set in this environment: ${sceneDescription.trim()}.
+
+`;
   } else {
-    prompt += ` BACKGROUND SELECTION: Choose the most appropriate setting:`;
-    prompt += ` - For accessories: Sophisticated studio with premium lighting, marble surfaces, silk draping, or luxury boutique display`;
-    prompt += ` - For clothing: Professional fashion photography studio with perfect lighting, or authentic lifestyle setting that matches the garment's purpose (office wear in professional setting, casual wear in relaxed environment, evening wear in elegant setting)`;
+    prompt += `BACKGROUND SELECTION: Intelligently choose based on product analysis:
+- For accessories/non-wearable items → Use studio with premium lighting, marble surfaces, silk draping, or luxury boutique display.
+- For clothing/wearable items → Use fashion studio lighting OR lifestyle setting that matches the garment's purpose (office wear in professional setting, casual wear in relaxed environment, evening wear in elegant setting).
+- Maintain consistency: similar products should get similar background treatments.
+
+`;
   }
-  
-  // Fashion-critical technical requirements
-  prompt += ` ESSENTIAL FASHION PHOTOGRAPHY STANDARDS:`;
-  prompt += ` - Showcase fabric texture, weave, and material quality with crystal clarity`;
-  prompt += ` - For clothing: Demonstrate proper fit, drape, and how the garment naturally falls and moves`;
-  prompt += ` - Ensure perfect color accuracy - colors must appear exactly as they would in real life for online shopping`;
-  prompt += ` - Capture fine details: stitching quality, button placement, zipper details, patterns, embellishments, brand elements`;
-  prompt += ` - Use professional fashion photography lighting with soft, even illumination that enhances textures`;
-  prompt += ` - DSLR-quality sharpness with authentic material representation and natural shadows`;
-  
-  // Enhanced fashion-specific overlay handling
-  if (priceOverlay && priceOverlay.trim()) {
-    prompt += ` Keep the fashion photography completely photorealistic and professional. Then overlay ONLY this exact text: "${priceOverlay.trim()}" in high-impact fashion advertising style.`;
-    prompt += ` CRITICAL TEXT ACCURACY: Spell every word EXACTLY as provided - "${priceOverlay.trim()}" - do not change spelling, do not auto-correct, do not modify any letters or characters.`;
-    prompt += ` FASHION TEXT DESIGN REQUIREMENTS:`;
-    prompt += ` - Create maximum visual contrast using sophisticated drop shadows, elegant outlines, or premium background shapes`;
-    prompt += ` - For price/discount offers: Design as attractive STICKER-STYLE elements - circular badges, geometric shapes, or decorative banners that look like premium retail stickers`;
-    prompt += ` - For festival wishes (Diwali, Eid, Christmas, etc.): Create decorative STICKER overlays with festive colors and elegant borders that complement the celebration`;
-    prompt += ` - For brand names: Use elegant, high-end typography with perfect contrast and premium positioning`;
-    prompt += ` - For promotional text: Apply modern STICKER-STYLE design elements - badges, ribbons, or geometric overlays that look professionally applied`;
-    prompt += ` - For contact information: Create professional sticker-format with rounded corners, borders, and contrasting background`;
-    prompt += ` - STICKER CHARACTERISTICS: Add subtle shadows, slight 3D effect, rounded corners, and premium borders to make overlays look like high-quality retail stickers`;
-    prompt += ` - Position text strategically (top corner, side panel, bottom strip) ensuring the clothing/accessory remains the hero element`;
-    prompt += ` - Typography should feel premium and fashion-forward, matching high-end retail advertising standards`;
-    prompt += ` - All text must be instantly readable with strong visual separation from any background elements`;
+
+  // Technical requirements
+  prompt += `ESSENTIAL FASHION PHOTOGRAPHY STANDARDS:
+- Showcase texture, fabric weave, stitching, and material quality with crystal clarity.
+- For clothing: demonstrate natural drape, fit, and how garments fall on the body.
+- Ensure perfect color accuracy - colors must appear exactly as in real life for e-commerce.
+- Highlight fine details: stitching quality, zippers, buttons, patterns, embellishments.
+- Use professional fashion lighting: soft, even illumination that enhances textures.
+- DSLR-level sharpness with authentic material representation and natural shadows.
+
+`;
+
+  // Overlay handling with intelligent multi-intent detection
+  if (priceOverlay?.trim()) {
+    const text = priceOverlay.trim();
+    
+    // Multi-intent detection - text can have multiple types
+    const hasPriceOffer = /(%|₹|\$|Rs\.?|OFF|Sale|Discount|Buy.*Get|Starting|Flat|\d+.*%)/i.test(text);
+    const hasFestival = /(Diwali|Deepavali|Eid|Christmas|Xmas|New Year|Holi|Dussehra|Navratri|Ganesh|Durga|Karva|Valentine|Mother|Father)/i.test(text);
+    const hasContact = /(\d{10}|\d{3}[-.\s]?\d{3}[-.\s]?\d{4}|@|\.com|\.in|Call|Contact|Ph|Mobile|WhatsApp)/i.test(text);
+    const hasUrgency = /(Limited|Hurry|Today|Hours|Days|Only|Last|Ending|Expires)/i.test(text);
+    const hasBrandName = /(Textiles|Fashion|Boutique|Store|Shop|Brand|Collection|Designer|Couture|Apparels|Garments|Emporium|Showroom|Palace|House|Studio|Creations|Trends|Style|Wear|Clothing|Sarees|Silk|Cotton|Handloom|Ethnic|Traditional|Modern|Luxury|Premium|Exclusive|Signature|Original|Authentic|Royal|Classic|Elite|Heritage|Crafts|Art|Beauty|Elegance)|([A-Z][a-z]+ ?[A-Z][a-z]*)/i.test(text);
+    
+    // Determine primary intent (hierarchy: Festival > Brand > Price > Contact)
+    let primaryIntent = 'generic';
+    if (hasFestival) primaryIntent = 'festival';
+    else if (hasBrandName && !hasPriceOffer) primaryIntent = 'brand';
+    else if (hasPriceOffer) primaryIntent = 'price';
+    else if (hasContact) primaryIntent = 'contact';
+    
+    // Build styling description
+    let intents = [];
+    if (hasFestival) intents.push('FESTIVAL');
+    if (hasBrandName) intents.push('BRAND');
+    if (hasPriceOffer) intents.push('PRICE');
+    if (hasContact) intents.push('CONTACT');
+    if (hasUrgency) intents.push('URGENCY');
+    
+    prompt += `Overlay ONLY this exact text: "${text}".
+CRITICAL: Do not change spelling, auto-correct, or modify any letters or characters.
+
+DETECTED CONTENT: ${intents.length > 0 ? intents.join(' + ') : 'GENERIC'}
+PRIMARY INTENT: ${primaryIntent.toUpperCase()}
+
+MULTI-ELEMENT TEXT DESIGN REQUIREMENTS:`;
+
+    if (primaryIntent === 'festival') {
+      prompt += `
+- PRIMARY: Festival celebration styling with decorative elements, festive colors (gold, red, saffron).
+- BRAND INTEGRATION: If brand name present, style it elegantly within the festive design with premium typography.
+- SECONDARY: If price/discount is present, integrate as smaller badges within the festive design.
+- TERTIARY: Contact info should be subtle, placed at bottom in smaller, elegant font.`;
+    } else if (primaryIntent === 'brand') {
+      prompt += `
+- PRIMARY: Elegant brand name styling with premium, sophisticated typography and luxury feel.
+- Use high-end color schemes (black/gold, white/silver, navy/gold) that convey prestige and quality.
+- Brand name should be the hero element with premium positioning and elegant borders.
+- SECONDARY: Any price/contact info as supporting elements in smaller, complementary styling.`;
+    } else if (primaryIntent === 'price') {
+      prompt += `
+- PRIMARY: Bold, eye-catching discount/price styling with bright colors (red, orange, yellow).
+- BRAND INTEGRATION: If brand name present, position it prominently but elegantly alongside price offers.
+- SECONDARY: If festival mentioned, add subtle festive accents to the price design.
+- TERTIARY: Contact info in smaller text, positioned strategically without competing with price.`;
+    } else if (primaryIntent === 'contact') {
+      prompt += `
+- PRIMARY: Professional contact information design with clear, readable formatting.
+- BRAND INTEGRATION: If brand name present, style it as the main header with contact info below.
+- SECONDARY: Any price/offer info as supporting elements.`;
+    } else {
+      prompt += `
+- PRIMARY: Clean, professional styling with elegant typography.
+- Use balanced design approach for mixed content.`;
+    }
+
+    prompt += `
+- COMPLEX TEXT HANDLING: Use visual hierarchy - most important info largest, supporting info smaller.
+- BRAND NAME TREATMENT: Always style brand names with premium typography, elegant fonts, and sophisticated presentation.
+- LAYOUT STRATEGY: Stack information vertically OR use multi-panel sticker design to organize different elements.
+- If urgency words present, add attention-grabbing elements (flashing effects, bold borders, urgent colors).
+- STICKER CHARACTERISTICS: Add subtle shadows, slight 3D effect, rounded corners, and premium borders.
+- Position strategically (corner, panel, strip) ensuring the product remains the hero element.
+- Typography must be instantly readable with maximum visual contrast and separation from background.
+
+`;
   } else {
-    prompt += ` Create pure fashion photography with zero text overlay - let the garment/accessory be the complete visual focus.`;
+    prompt += `Create pure fashion photography with zero text overlay - let the product be the complete visual focus.
+
+`;
   }
-  
-  // Final output specifications
-  prompt += ` Format the output with aspect ratio ${aspectRatio}, optimized for fashion e-commerce, social media, and digital advertising.`;
-  prompt += ` FINAL QUALITY STANDARD: The image must be indistinguishable from professional fashion magazine photography or premium online store imagery - with perfect styling, commercial-grade lighting, and fashion industry presentation standards.`;
-  
+
+  // Final specifications
+  prompt += `Output in aspect ratio ${aspectRatio}, optimized for fashion e-commerce and social media.
+FINAL QUALITY: The result must be indistinguishable from professional fashion magazine photography or premium online store imagery with perfect styling and commercial-grade presentation.`;
+
   return prompt;
 }
 
