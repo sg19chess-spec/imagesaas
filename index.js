@@ -1152,7 +1152,7 @@ function createSimplePrompt(productCategory, sceneDescription = null, priceOverl
   // Enhanced fashion-specific overlay handling
   if (priceOverlay && priceOverlay.trim()) {
     prompt += ` Keep the fashion photography completely photorealistic and professional. Then overlay ONLY this exact text: "${priceOverlay.trim()}" in high-impact fashion advertising style.`;
-    prompt += ` Do not add any extra text beyond what was provided.`;
+    prompt += ` CRITICAL TEXT ACCURACY: Spell every word EXACTLY as provided - "${priceOverlay.trim()}" - do not change spelling, do not auto-correct, do not modify any letters or characters.`;
     prompt += ` FASHION TEXT DESIGN REQUIREMENTS:`;
     prompt += ` - Create maximum visual contrast using sophisticated drop shadows, elegant outlines, or premium background shapes`;
     prompt += ` - For price/discount offers: Design as attractive STICKER-STYLE elements - circular badges, geometric shapes, or decorative banners that look like premium retail stickers`;
