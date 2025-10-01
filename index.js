@@ -809,9 +809,40 @@ function getUserPhoneFromPayload(decryptedBody) {
   console.log('❌ No valid phone number found in flow_token or embedded data');
   return null;
 }
+async function processWhatsAppImage(imageInput) {
+  console.log('Processing WhatsApp image...');
+  
+  if (!imageInput) {
+    throw new Error('Image input is null or undefined');
+  }
+  
+  // Handle encryption_metadata (encrypted image)
+  if (imageInput.encryption_metadata) {
+    console.log('Decrypting encrypted WhatsApp image...');
+    return await decryptWhatsAppImage(imageInput);
+  }
+  
+  // Handle cdn_url (unencrypted image)
+  if (imageInput.cdn_url) {
+    console.log('Fetching unencrypted image from CDN:', imageInput.cdn_url);
+    const response = await fetch(imageInput.cdn_url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.status}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer).toString('base64');
+  }
+  
+  // Handle direct base64 string
+  if (typeof imageInput === 'string') {
+    console.log('Processing direct base64 string...');
+    return imageInput;
+  }
+  
+  throw new Error('Invalid image format: no cdn_url, encryption_metadata, or base64 string found');
+}
 // Enhanced Image Generation with BSP Integration
-async function generateImageAndSendToUser(decryptedBody, actualImageData, productCategory, sceneDescription, priceOverlay) {
-  console.log('🚀 Starting image generation and user notification...');
+async function generateImageAndSendToUser(decryptedBody, productImageData, modelImageData, productCategory, sceneDescription, priceOverlay) {  console.log('🚀 Starting image generation and user notification...');
   
   try {
     // Use phone from flow_token (passed explicitly) or extract from flow_token
@@ -833,19 +864,19 @@ async function generateImageAndSendToUser(decryptedBody, actualImageData, produc
     }
 
     // Generate the actual image
-    const imageUrl = await generateImageFromAi(
-      actualImageData,
-      productCategory.trim(),
-      sceneDescription,
-      priceOverlay
-    );
+const imageUrl = await generateImageFromAi(
+  productImageData,
+  modelImageData,
+  productCategory.trim(),
+  sceneDescription,
+  priceOverlay
+);
     
     console.log('✅ Image generation successful:', imageUrl);
 
     // Get lead info for personalized message (optional - can still use BSP data for names)
     const leadInfo = getBspLead(toPhone);
-    const caption = createImageCaption(productCategory, priceOverlay, leadInfo);
-    
+    const caption = createImageCaption(productCategory, priceOverlay, leadInfo, !!modelImageData);    
     console.log('📤 Sending generated image to user:', toPhone);
     console.log('📝 Caption:', caption);
     
@@ -1117,18 +1148,31 @@ async function uploadGeneratedImageToSupabase(base64Data, mimeType) {
 }
 
 // Simple prompt creation function
-function createSimplePrompt(productCategory, sceneDescription = null, priceOverlay = null, aspectRatio = "1:1") {
+function createPromptForTwoImages(productCategory, sceneDescription, priceOverlay, hasModelImage) {
   if (!productCategory || !productCategory.trim()) {
     return "Error: Product name is required";
   }
-  
-  let prompt = `You are a world-class fashion photographer and commercial advertising designer. 
+    let prompt = '';  // <- ADD THIS LINE
+
+if (hasModelImage) {
+    prompt = `Create a professional e-commerce product placement photo. Take the ${productCategory.trim()} from the first image and place it on the person/model from the second image.
+
+CRITICAL REQUIREMENTS:
+- Preserve the EXACT product design, color, pattern, and style from image 1
+- Preserve the EXACT person's face, features, pose, and body from image 2
+- Create realistic placement as if the person is naturally wearing/using the product
+- Adjust lighting, shadows, and perspective for authentic integration
+- Ensure proper draping, folds, and natural positioning
+
+`;
+  } else {
+    rompt = `You are a world-class fashion photographer and commercial advertising designer. 
 Create a premium-quality, photorealistic fashion visual for: ${productCategory.trim()}.
 If there is an uploaded reference image, use it as your guide - recreate the EXACT same ${productCategory} design, style, color, pattern, and details shown in the reference. 
 Do not change the product design, only enhance the photography quality and presentation.
 
 `;
-
+}
   // Prompt-based presentation decision
   prompt += `PRESENTATION DECISION: Analyze "${productCategory.trim()}" and intelligently choose:
 - If this is clothing/garments/wearable fabric items → ALWAYS show on an attractive model with proper fit & styling.
@@ -1231,19 +1275,18 @@ SINGLE ELEMENT DESIGN (${styleType.toUpperCase()} STYLE):
   }
 
   // Final specifications
-  prompt += `Output in aspect ratio ${aspectRatio}, optimized for fashion e-commerce and social media.
+  prompt += `Output in aspect ratio 1:1, optimized for fashion e-commerce and social media.
 FINAL QUALITY: The result must be indistinguishable from professional fashion magazine photography or premium online store imagery with perfect styling and commercial-grade presentation.`;
 
   return prompt;
 }
 
 // Simplified Gemini API call
-async function generateImageFromAi(productImageBase64, productCategory, sceneDescription = null, priceOverlay = null) {
-  console.log('=== GENERATE IMAGE FROM AI ===');
+async function generateImageFromAi(productImageBase64, modelImageBase64, productCategory, sceneDescription = null, priceOverlay = null) {  console.log('=== GENERATE IMAGE FROM AI ===');
   console.log('Parameters:');
   console.log('- productImageBase64 length:', productImageBase64 ? productImageBase64.length : 0);
-  console.log('- productCategory:', productCategory || 'MISSING');
-  console.log('- sceneDescription:', sceneDescription || 'not provided');
+  console.log('- modelImageBase64:', modelImageBase64 ? `present (${modelImageBase64.length} chars)` : 'not provided');
+  console.log('- productCategory:', productCategory || 'MISSING');  console.log('- sceneDescription:', sceneDescription || 'not provided');
   console.log('- priceOverlay:', priceOverlay || 'not provided');
   
   if (!productImageBase64 || typeof productImageBase64 !== 'string') {
@@ -1270,29 +1313,55 @@ async function generateImageFromAi(productImageBase64, productCategory, sceneDes
     }
   }
 
-  console.log("Step 2: Creating simple prompt...");
-  
-  const simplePrompt = createSimplePrompt(productCategory, sceneDescription, priceOverlay);
-  console.log("Simple prompt:", simplePrompt);
+  console.log("Step 2: Cleaning model image if provided...");
 
+let cleanModelBase64 = null;
+if (modelImageBase64) {
+  cleanModelBase64 = modelImageBase64;
+  if (modelImageBase64.startsWith('data:')) {
+    const base64Index = modelImageBase64.indexOf(',');
+    if (base64Index !== -1) {
+      cleanModelBase64 = modelImageBase64.substring(base64Index + 1);
+      console.log("✅ Model image data URL prefix removed");
+    }
+  }
+}
+
+console.log("Step 3: Creating prompt...");
+
+const prompt = createPromptForTwoImages(productCategory, sceneDescription, priceOverlay, !!modelImageBase64);
+console.log("Prompt created (first 200 chars):", prompt.substring(0, 200) + "...");
   console.log("Step 3: Sending to Gemini API...");
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${apiKey}`;
 
-  const requestBody = {
-    contents: [
-      {
-        parts: [
-          { text: simplePrompt },
-          {
-            inlineData: {
-              mimeType: "image/jpeg",
-              data: cleanBase64
-            }
-          }
-        ]
-      }
-    ],
+  const parts = [{ text: prompt }];
+
+parts.push({
+  inlineData: {
+    mimeType: "image/jpeg",
+    data: cleanBase64
+  }
+});
+
+if (cleanModelBase64) {
+  parts.push({
+    inlineData: {
+      mimeType: "image/jpeg",
+      data: cleanModelBase64
+    }
+  });
+  console.log("✅ Added 2 images to request (product + model)");
+} else {
+  console.log("✅ Added 1 image to request (product only)");
+}
+
+const requestBody = {
+  contents: [
+    {
+      parts: parts
+    }
+  ],
     generationConfig: {
       temperature: 0.8,
       maxOutputTokens: 1024,
@@ -1645,20 +1714,20 @@ async function handleDataExchange(decryptedBody) {
 
   // Handle image generation flow
   if (data && typeof data === 'object') {
-    const { scene_description, price_overlay, product_image, product_category } = data;
+    const { scene_description, price_overlay, product_images, product_category } = data;
 
     console.log('=== FIELD VALIDATION ===');
-    console.log('product_image:', product_image ? 'present' : 'MISSING (REQUIRED)');
+console.log('product_images:', product_images ? `array with ${product_images.length} image(s)` : 'MISSING (REQUIRED)');
     console.log('product_category:', product_category ? `"${product_category}"` : 'MISSING (REQUIRED)');
     console.log('scene_description:', scene_description ? `"${scene_description}"` : 'not provided (optional)');
     console.log('price_overlay:', price_overlay ? `"${price_overlay}"` : 'not provided (optional)');
 
-    if (!product_image) {
-      return {
-        screen: 'COLLECT_IMAGE_SCENE',
-        data: { error_message: "Product image is required. Please upload an image of your product." }
-      };
-    }
+    if (!product_images || !Array.isArray(product_images) || product_images.length === 0) {
+  return {
+    screen: 'COLLECT_IMAGE_SCENE',
+    data: { error_message: "At least one product image is required. Please upload your product image." }
+  };
+}
 
     if (!product_category || !product_category.trim()) {
       return {
@@ -1679,44 +1748,34 @@ async function handleDataExchange(decryptedBody) {
       }
     }
 
-    let actualImageData;
-    try {
-      console.log('=== IMAGE PROCESSING ===');
-      
-      if (Array.isArray(product_image) && product_image.length > 0) {
-        console.log('Processing WhatsApp image array');
-        const firstImage = product_image[0];
-        
-        if (firstImage.encryption_metadata) {
-          console.log('Decrypting WhatsApp encrypted image...');
-          actualImageData = await decryptWhatsAppImage(firstImage);
-        } else if (firstImage.cdn_url) {
-          console.log('Fetching unencrypted image from CDN...');
-          const response = await fetch(firstImage.cdn_url);
-          if (!response.ok) {
-            throw new Error(`Failed to fetch image: ${response.status}`);
-          }
-          const arrayBuffer = await response.arrayBuffer();
-          actualImageData = Buffer.from(arrayBuffer).toString('base64');
-        } else {
-          throw new Error('Invalid image format: no cdn_url or encryption_metadata found');
-        }
-      } else if (typeof product_image === 'string') {
-        console.log('Processing direct base64 string...');
-        actualImageData = product_image;
-      } else {
-        throw new Error('Invalid product_image format: expected array or string');
-      }
-      
-      console.log('✅ Image processing successful');
-      
-    } catch (imageError) {
-      console.error('❌ Image processing failed:', imageError);
-      return {
-        screen: 'COLLECT_IMAGE_SCENE',
-        data: { error_message: `Failed to process image: ${imageError.message}. Please try uploading the image again.` }
-      };
-    }
+    // Process first image (product) - REQUIRED
+let productImageData;
+try {
+  console.log('=== PROCESSING PRODUCT IMAGE (Image 1) ===');
+  productImageData = await processWhatsAppImage(product_images[0]);
+  console.log('✅ Product image processed successfully');
+} catch (imageError) {
+  console.error('❌ Product image processing failed:', imageError);
+  return {
+    screen: 'COLLECT_IMAGE_SCENE',
+    data: { error_message: `Failed to process product image: ${imageError.message}. Please try uploading again.` }
+  };
+}
+
+// Process second image (model) - OPTIONAL
+let modelImageData = null;
+if (product_images.length > 1) {
+  try {
+    console.log('=== PROCESSING MODEL IMAGE (Image 2) ===');
+    modelImageData = await processWhatsAppImage(product_images[1]);
+    console.log('✅ Model image processed successfully');
+  } catch (modelError) {
+    console.error('⚠️ Model image processing failed:', modelError);
+    console.log('Continuing with product image only...');
+  }
+} else {
+  console.log('📝 Only 1 image uploaded - proceeding with product enhancement mode');
+}
 
     console.log('🚀 Showing success screen first, then processing in background...');
 
@@ -1725,7 +1784,8 @@ async function handleDataExchange(decryptedBody) {
       // Process in background without awaiting - this will now send progress message immediately
 generateImageAndSendToUser(
   { ...decryptedBody, userPhone },
-  actualImageData,
+  productImageData,
+  modelImageData,
   product_category.trim(),
   scene_description && scene_description.trim() ? scene_description.trim() : null,
   price_overlay && price_overlay.trim() ? price_overlay.trim() : null
