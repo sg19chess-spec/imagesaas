@@ -1166,7 +1166,7 @@ CRITICAL REQUIREMENTS:
 
 `;
   } else {
-    rompt = `You are a world-class fashion photographer and commercial advertising designer. 
+    prompt = `You are a world-class fashion photographer and commercial advertising designer. 
 Create a premium-quality, photorealistic fashion visual for: ${productCategory.trim()}.
 If there is an uploaded reference image, use it as your guide - recreate the EXACT same ${productCategory} design, style, color, pattern, and details shown in the reference. 
 Do not change the product design, only enhance the photography quality and presentation.
@@ -1714,28 +1714,29 @@ async function handleDataExchange(decryptedBody) {
 
   // Handle image generation flow
   if (data && typeof data === 'object') {
+    console.log('=== RAW DATA RECEIVED ===');
+    console.log(JSON.stringify(data, null, 2));
+    
     const { scene_description, price_overlay, product_images, product_category } = data;
-
-    console.log('=== FIELD VALIDATION ===');
-console.log('product_images:', product_images ? `array with ${product_images.length} image(s)` : 'MISSING (REQUIRED)');
-    console.log('product_category:', product_category ? `"${product_category}"` : 'MISSING (REQUIRED)');
-    console.log('scene_description:', scene_description ? `"${scene_description}"` : 'not provided (optional)');
-    console.log('price_overlay:', price_overlay ? `"${price_overlay}"` : 'not provided (optional)');
-
-    if (!product_images || !Array.isArray(product_images) || product_images.length === 0) {
-  return {
-    screen: 'COLLECT_IMAGE_SCENE',
-    data: { error_message: "At least one product image is required. Please upload your product image." }
-  };
-}
-
-    if (!product_category || !product_category.trim()) {
-      return {
-        screen: 'COLLECT_INFO',
-        data: { error_message: "Product category is required. Please specify what type of product this is." }
-      };
+    
+    // Only validate when product_category exists (form submitted)
+    if (product_category && product_category.trim()) {
+      console.log('=== FIELD VALIDATION ===');
+      console.log('product_images:', product_images ? `array with ${product_images.length} image(s)` : 'MISSING (REQUIRED)');
+      console.log('product_category:', product_category ? `"${product_category}"` : 'MISSING (REQUIRED)');
+      console.log('scene_description:', scene_description ? `"${scene_description}"` : 'not provided (optional)');
+      console.log('price_overlay:', price_overlay ? `"${price_overlay}"` : 'not provided (optional)');
+      
+      if (!product_images || !Array.isArray(product_images) || product_images.length === 0) {
+        return {
+          screen: 'COLLECT_IMAGE_SCENE',
+          data: { error_message: "At least one product image is required. Please upload your product image." }
+        };
+      }
+    } else {
+      // Form not submitted yet, just return without validation
+      return { screen: 'COLLECT_INFO', data: {} };
     }
-
     // Check credits before processing
     // userPhone is already set at the top of the function from flow_token // No need to call getUserPhoneFromPayload anymore
     if (userPhone) {
