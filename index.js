@@ -1120,504 +1120,418 @@ async function uploadGeneratedImageToSupabase(base64Data, mimeType) {
 
 // Simple prompt creation function
 function createSimplePrompt(productCategory, sceneDescription = null, priceOverlay = null, aspectRatio = "1:1") {
-  if (!productCategory || !productCategory.trim()) {
-    return "Error: Product name is required";
-  }
+  if (!productCategory?.trim()) return "Error: Product name required";
   
-  let prompt = `You are a world-class fashion photographer and commercial advertising designer. 
-Create a premium-quality, photorealistic fashion visual for: ${productCategory.trim()}.
-If there is an uploaded reference image, use it as your guide - recreate the EXACT same ${productCategory} design, style, color, pattern, and details shown in the reference. 
-Do not change the product design, only enhance the photography quality and presentation.
+  let prompt = `Professional fashion photography for ${productCategory.trim()}.
+
+PRODUCT ACCURACY (E-COMMERCE CRITICAL):
+- Exact colors, patterns, textures from reference - zero deviation
+- Preserve all design details: buttons, zippers, stitching, embellishments
+- True-to-life color accuracy (prevents returns)
+- Material type clearly identifiable (fabric weave, texture visible)
+- Show on attractive model if clothing, premium flat-lay if accessories
+
+TECHNICAL QUALITY:
+- DSLR-level sharpness (50mm f/1.8 look), tack-sharp focus
+- Professional depth of field (product sharp, background soft blur)
+- Even studio lighting, no harsh shadows or blown highlights
+- Natural shadows for depth, no crushed blacks
 
 `;
 
-  // Prompt-based presentation decision
-  prompt += `PRESENTATION DECISION: Analyze "${productCategory.trim()}" and intelligently choose:
-- If this is clothing/garments/wearable fabric items → ALWAYS show on an attractive model with proper fit & styling.
-- If this is accessories/non-wearable items → ALWAYS use elegant flat-lay or premium product display without models.
-- Choose the best angle: full body (complete outfits), upper body (tops/jackets), detail shots (intricate pieces).
-- Be consistent: same product types should get identical presentation styles.
-
-`;
-
-  // Scene handling
+  // Background with integration focus
   if (sceneDescription?.trim()) {
-    prompt += `Set in this environment: ${sceneDescription.trim()}.
+    prompt += `SCENE & INTEGRATION:
+Environment: ${sceneDescription.trim()}
+- Consistent lighting throughout (product matches background)
+- Same color temperature across entire image
+- Product blends naturally (no floating or pasted look)
+- Realistic shadows and perspective
+- Professional lifestyle setting suitable for ${productCategory.trim()}
 
 `;
   } else {
-    prompt += `BACKGROUND SELECTION: Intelligently choose based on product analysis:
-- For accessories/non-wearable items → Use studio with premium lighting, marble surfaces, silk draping, or luxury boutique display.
-- For clothing/wearable items → Use fashion studio lighting OR lifestyle setting that matches the garment's purpose (office wear in professional setting, casual wear in relaxed environment, evening wear in elegant setting).
-- Maintain consistency: similar products should get similar background treatments.
+    prompt += `BACKGROUND INTELLIGENCE:
+- Accessories → Studio with premium lighting, marble/silk surfaces, luxury display
+- Clothing → Fashion studio OR lifestyle setting matching garment purpose
+  (Office wear → professional setting, casual → relaxed environment, evening → elegant setting)
+- Clean, professional, no distracting elements
+- Consistent style for similar products
 
 `;
   }
 
-  // Technical requirements
-  prompt += `ESSENTIAL FASHION PHOTOGRAPHY STANDARDS:
-- Showcase texture, fabric weave, stitching, and material quality with crystal clarity.
-- For clothing: demonstrate natural drape, fit, and how garments fall on the body.
-- Ensure perfect color accuracy - colors must appear exactly as in real life for e-commerce.
-- Highlight fine details: stitching quality, zippers, buttons, patterns, embellishments.
-- Use professional fashion lighting: soft, even illumination that enhances textures.
-- DSLR-level sharpness with authentic material representation and natural shadows.
-
-`;
-
-  // Enhanced text overlay system
+  // Text overlay with AI-driven banner selection
   if (priceOverlay?.trim()) {
-    const text = priceOverlay.trim();
-    const isCommaSeparated = text.includes(',');
+    const elements = priceOverlay.split(',').map(t => t.trim()).filter(t => t);
     
-    if (isCommaSeparated) {
-      const elements = text.split(',').map(item => item.trim()).filter(item => item);
-      
-      prompt += `🎯 TEXT OVERLAY - PROFESSIONAL ACCURACY REQUIRED 🎯
+    prompt += `TEXT OVERLAY - INTELLIGENT BANNER DESIGN:
+Text elements: ${elements.map((e, i) => `${i + 1}. "${e}"`).join(', ')}
 
-TEXT ELEMENTS (in priority order): ${elements.map((item, index) => `"${item}"`).join(', ')}
+🤖 AI INSTRUCTION: Analyze the text content above and select the most appropriate banner style.
 
-⚠️ CRITICAL TEXT RULES - ZERO TOLERANCE FOR ERRORS ⚠️
-1. EXACT SPELLING: Copy every letter, number, symbol EXACTLY as provided
-2. NO AUTO-CORRECT: Do not fix spelling, grammar, or abbreviations
-3. NO MODIFICATIONS: Do not change "Rs" to "₹", "50%" to "fifty percent", etc.
-4. PRESERVE FORMATTING: Keep spaces, punctuation, capitalization exactly as given
-5. COMPLETE TEXT: Do not truncate, summarize, or skip any characters
+BANNER STYLE SELECTION LOGIC:
+1. Read each text element carefully
+2. Identify the content type (festival, sale, brand, contact, or generic)
+3. Choose the matching banner style from the options below
+4. Apply the style-specific design to that text element
 
-USER-DEFINED PRIORITY HIERARCHY:
-PRIMARY (Highest Impact): "${elements[0]}"
-→ Size: 40-50% larger than secondary elements
-→ Position: Top-left or center-top (first visual contact point)
-→ Styling: Bold, high-contrast, maximum visibility
-→ Space: 30-40% of image width, clear breathing room
+AVAILABLE BANNER STYLES:
 
-SECONDARY: ${elements[1] ? `"${elements[1]}"` : 'None'}
-→ Size: 60-70% of primary size
-→ Position: Top-right or beside primary (natural eye flow)
-→ Styling: Complementary to primary, strong but not competing
+**RIBBON BANNER** - Use when text contains:
+- Festival names: Diwali, Eid, Christmas, Navratri, Pongal, Holi, etc.
+- Celebration words: Festival, Celebration, Special Occasion
+→ Design: Diagonal or horizontal ribbon with folded edge, decorative corners
+→ Colors: Rich gold (#D4AF37), deep red (#C41E3A), festive green (#2E7D32)
+→ Effects: Warm glow, sparkle accents, ornamental details
+→ Position: Top-left diagonal or horizontal across top
 
-TERTIARY: ${elements[2] ? `"${elements[2]}"` : 'None'}
-→ Size: 50-60% of primary size
-→ Position: Bottom corners for visual balance
-→ Styling: Supporting element, clear but subtle
+**BURST/EXPLOSION SHAPE** - Use when text contains:
+- Discounts: %, OFF, Sale, Discount, Deal, Flat
+- Numbers with %: "50%", "Up to 70%", "Flat 40% OFF"
+- Urgency: Limited, Flash, Hurry, Today Only
+→ Design: 8-12 point star burst or explosion shape
+→ Colors: Electric red (#FF3131), vibrant orange (#FF6B35), hot yellow (#FFD23F)
+→ Effects: Bold shadows (6-8px), thick borders (3-4px)
+→ Position: Top-left corner for maximum impact
 
-ADDITIONAL: ${elements.slice(3).length > 0 ? elements.slice(3).map(item => `"${item}"`).join(', ') : 'None'}
-→ Size: 40% of primary size
-→ Position: Edge placement, non-competing zones
-→ Styling: Minimal but readable
+**CORNER PEEL TAG** - Use when text contains:
+- Small discounts: Percentage symbols, short sale text
+- Quick offers: "New", "Hot", percentage badges
+→ Design: Sticker peeling from corner with curled edge
+→ Colors: Bright attention colors (red, orange, yellow)
+→ Effects: 3D curled edge shadow, lift-off appearance
+→ Position: Top-right or top-left corner
 
-Z-PATTERN LAYOUT SYSTEM (Professional Eye Flow):
-┌─────────────────────┐
-│ PRIMARY    SECONDARY│  ← Top tier (immediate attention)
-│                     │
-│    🛍️ PRODUCT       │  ← Hero zone (never blocked)
-│                     │
-│ TERTIARY  ADDITIONAL│  ← Bottom tier (completion)
-└─────────────────────┘
+**FLOATING CARD** - Use when text contains:
+- Brand names: [Name] Textiles, [Name] Fashion, [Name] Boutique
+- Store names: Shop, Store, Collection, Designer, Couture
+- Elegant messaging: Premium, Exclusive, Luxury
+→ Design: Clean rectangular card with strong elevation shadow
+→ Colors: Black, white, navy, metallic gold (luxury palette)
+→ Effects: 6-8px shadow for floating effect, slight rounded corners (8-10px)
+→ Position: Top-center or bottom-center for prominence
 
-ADVANCED STYLING REQUIREMENTS:
-✓ Visual Hierarchy: Size + Color + Weight create clear importance ranking
-✓ Readability: Minimum 70% contrast ratio with background
-✓ Non-Destructive: Text floats OVER product, never obscures key details
-✓ Professional Polish: Subtle drop shadows (2-3px), slight 3D depth, rounded corners (8-12px)
-✓ Premium Borders: 2-3px solid or gradient borders for sticker effect
-✓ Background Integration: Text background/badge slightly transparent or color-matched to scene
-✓ Typography: Sans-serif for prices/offers, serif for brand names, script for festivals
+**GLASSMORPHISM BANNER** - Use when text contains:
+- Modern brand names with contemporary feel
+- Premium product messaging
+- Tech-forward or minimalist brands
+→ Design: Semi-transparent frosted glass blur effect
+→ Colors: Any, but with 70-80% transparency and backdrop blur
+→ Effects: Thin border (1-2px), subtle gradient overlay
+→ Position: Anywhere, adaptable and modern
 
-CONTENT-AWARE STYLING:
-- Festival/Celebration: Vibrant colors (gold, red, green), decorative elements
-- Discounts/Sales: Bold, urgent colors (red, orange), large percentages
-- Brand Names: Elegant, minimal, sophisticated (black, white, navy)
-- Contact Info: Small, discreet, bottom placement (gray, subtle)
+**SMALL STICKER BADGE** - Use when text contains:
+- Phone numbers: 10 digits, formatted numbers
+- Email/website: @, .com, .in, .org
+- Contact words: Call, Contact, WhatsApp, Phone, Mobile
+→ Design: Small rounded rectangle, minimal effects
+→ Colors: Soft gray (#757575), muted blue (#546E7A), neutral tones
+→ Effects: Subtle shadow (2-3px), simple clean borders
+→ Position: Bottom-right or bottom-left corner (discreet)
 
-SPACING & BALANCE:
-- Minimum 8% margin from all edges
-- Product must occupy 60-70% of visual real estate
-- Text elements combined should not exceed 30% of image area
-- Maintain 15-20% empty space for visual breathing room
+**STICKER/BADGE (DEFAULT)** - Use when text doesn't match above:
+- Generic promotional text, product features, ambiguous content
+→ Design: Versatile rounded rectangle (12-15px corners)
+→ Colors: Based on overall image mood and contrast needs
+→ Effects: Standard shadow (4-6px), 2-3px borders
+→ Position: Top-left or top-center based on hierarchy
 
-`;
-      
-    } else {
-      // Single element with enhanced detection
-      const hasPriceOffer = /(%|₹|\$|Rs\.?|OFF|Sale|Discount|Buy.*Get|Starting|Flat|\d+.*%|Offer|Deal)/i.test(text);
-      const hasFestival = /(Diwali|Deepavali|Eid|Christmas|Xmas|New Year|Holi|Dussehra|Navratri|Ganesh|Durga|Karva|Valentine|Mother|Father|Pongal|Onam)/i.test(text);
-      const hasContact = /(\d{10}|\d{3}[-.\s]?\d{3}[-.\s]?\d{4}|@|\.com|\.in|\.org|Call|Contact|Ph|Mobile|WhatsApp|Tel)/i.test(text);
-      const hasBrandName = /(Textiles|Fashion|Boutique|Store|Shop|Brand|Collection|Designer|Couture|Apparels|Garments|Co\.|Ltd|Pvt)/i.test(text);
-      
-      let styleType = 'generic';
-      if (hasFestival) styleType = 'festival';
-      else if (hasBrandName) styleType = 'brand';
-      else if (hasPriceOffer) styleType = 'price';
-      else if (hasContact) styleType = 'contact';
-      
-      prompt += `🎯 SINGLE TEXT OVERLAY - PROFESSIONAL ACCURACY 🎯
+EXAMPLE DECISION PROCESS:
+• "${elements[0]}" = "Diwali Sale 50% OFF" → BURST SHAPE with festive colors (sale dominant)
+• "${elements[0]}" = "Sharma Textiles" → FLOATING CARD with elegant black/white/gold
+• "${elements[0]}" = "Call: 9876543210" → SMALL STICKER BADGE, bottom corner, gray
+• "${elements[0]}" = "New Arrival" → STICKER/BADGE (default)
 
-TEXT TO DISPLAY: "${text}"
+📐 BANNER SIZING & HIERARCHY:
+- Primary "${elements[0]}": 40-50% image width, DOMINANT presence, top-left or center
+- Secondary "${elements[1] || 'N/A'}": 25-35% width, top-right or opposite corner, 60-70% size of primary
+- Tertiary "${elements[2] || 'N/A'}": 20-30% width, bottom corners, 50-60% size of primary
+- Additional elements: 15-25% width, edge placement, subtle
 
-⚠️ CRITICAL TEXT RULES - ZERO TOLERANCE FOR ERRORS ⚠️
-1. EXACT SPELLING: Copy every letter, number, symbol EXACTLY as provided
-2. NO AUTO-CORRECT: Do not fix spelling, grammar, or abbreviations
-3. NO MODIFICATIONS: Do not change "Rs" to "₹", "50%" to "fifty percent", etc.
-4. PRESERVE FORMATTING: Keep spaces, punctuation, capitalization exactly as given
-5. COMPLETE TEXT: Do not truncate, summarize, or skip any characters
+Z-PATTERN LAYOUT:
+┌─────────────────────────────┐
+│ PRIMARY ★        SECONDARY  │ ← Hot zone (immediate attention)
+│                             │
+│    [PRODUCT HERO SPACE]     │ ← Sacred zone (never block)
+│                             │
+│ TERTIARY        ADDITIONAL  │ ← Completion zone (balanced)
+└─────────────────────────────┘
 
-SINGLE ELEMENT DESIGN (${styleType.toUpperCase()} STYLE):
+VISUAL EFFECTS FOR ATTRACTIVENESS:
+- Drop shadows: 4-6px offset, 40-60% opacity, slight blur for depth
+- Borders: 2-4px solid or gradient for framing
+- Rounded corners: 12-15px for modern friendly look
+- Semi-transparent fills: 80-95% opacity for sophistication
+- Typography: Bold weights (700-900) for primary, medium (500-600) for secondary
+- High contrast: Minimum 4.5:1 ratio for readability
 
-Style-Specific Requirements:
-${styleType === 'festival' ? `
-→ Colors: Gold, red, orange, green (festive palette)
-→ Position: Top-center or top-left for celebration visibility
-→ Effects: Decorative borders, slight glow, ornamental corners
-→ Size: Large and celebratory (35-40% width)
-` : styleType === 'price' ? `
-→ Colors: Red, orange, yellow (urgency colors)
-→ Position: Top-left or center-prominent for maximum impact
-→ Effects: Bold borders, strong shadow, attention-grabbing
-→ Size: Extra large for deals (40-50% width)
-→ Badge Style: Circular or burst shape for offers
-` : styleType === 'brand' ? `
-→ Colors: Black, white, navy, gold (elegant palette)
-→ Position: Top-center or bottom-center for brand presence
-→ Effects: Minimal, clean borders, subtle shadows
-→ Size: Moderate and refined (25-30% width)
-→ Typography: Serif or elegant sans-serif
-` : styleType === 'contact' ? `
-→ Colors: Gray, dark blue, neutral tones
-→ Position: Bottom-right or bottom-left (non-intrusive)
-→ Effects: Subtle, minimal styling
-→ Size: Small and discreet (15-20% width)
-` : `
-→ Position: Based on text length and importance
-→ Effects: Clean, professional styling
-→ Size: Balanced with product (25-35% width)
-`}
+LAYOUT PRECISION:
+- 8-10% margins from all edges (professional spacing)
+- Text never overlaps critical product details
+- Product occupies 60-75% of frame (hero element)
+- 15-20% empty space for breathing room
+- Balanced composition, non-cluttered premium look
 
-UNIVERSAL STYLING:
-✓ Sticker Effect: 2-3px border, 3-5px shadow, 10-12px rounded corners
-✓ Readability: High contrast with background (minimum 4.5:1 ratio)
-✓ Integration: Floats naturally over image without blocking product
-✓ Professional Polish: Premium appearance suitable for e-commerce
+🎯 ATTRACTIVENESS GOAL:
+Make viewers STOP scrolling! Eye-catching enough to increase click-through rates.
+Instagram/Pinterest quality, modern, professional, premium e-commerce standard.
 
-`;
-    }
-
-    prompt += `FINAL TEXT VERIFICATION CHECKLIST:
-☐ Every character matches the input exactly
-☐ No spelling corrections or modifications
-☐ All punctuation and spacing preserved
-☐ Text is fully readable and clearly visible
-☐ Product remains the primary visual focus
-☐ Professional appearance suitable for commercial use
-
-`;
-  } else {
-    prompt += `Create pure fashion photography with zero text overlay - let the product be the complete visual focus.
+NOTE: Text spelling accuracy will be verified in post-production.
 
 `;
   }
 
-  // Final specifications
-  prompt += `Output in aspect ratio ${aspectRatio}, optimized for fashion e-commerce and social media.
-FINAL QUALITY STANDARD: Professional e-commerce photography indistinguishable from premium online retailers (Myntra, Ajio, Amazon Fashion) or fashion magazines (Vogue, Elle). Commercial-grade presentation ready for catalogs, websites, and marketing materials.`;
+  prompt += `COMPOSITION & FRAMING:
+- Product occupies 60-75% of frame (e-commerce standard)
+- Appropriate angle: Full body (complete outfits), Upper body (tops/jackets), Detail shots (intricate pieces)
+- Natural relaxed pose for models, elegant display for flat-lays
+- Rule of thirds or centered based on product
+- ${aspectRatio} aspect ratio
+
+FINAL QUALITY BENCHMARKS:
+- Indistinguishable from Myntra, Zara, H&M product images
+- Suitable for e-commerce listings, print catalogs, social media ads
+- Professional enough for ${productCategory.trim()} at its price point
+- Ready for immediate publication (after text/color QA)`;
 
   return prompt;
 }
 
 function createPromptWithModel(productCategory, sceneDescription = null, priceOverlay = null, aspectRatio = "1:1") {
-  if (!productCategory || !productCategory.trim()) {
-    return "Error: Product name is required";
-  }
+  if (!productCategory?.trim()) return "Error: Product name required";
+  
+  let prompt = `Professional fashion photography assignment: ${productCategory.trim()}.
 
-  let prompt = `🎬 PROFESSIONAL FASHION PHOTOGRAPHY ASSIGNMENT 🎬
+IMAGE ANALYSIS:
+Image 1 (Product): Extract exact design, colors, patterns, textures, all details
+Image 2 (Model Face): Use exact facial features for face only
+Body: Professional fashion model proportions (face from Image 2, body optimized for product display)
 
-CLIENT BRIEF:
-You are photographing a real person (your client from image 2) wearing their product (from image 1: ${productCategory.trim()}).
-This is commercial photography for e-commerce, catalogs, and marketing materials.
-
-📸 IMAGE ANALYSIS REQUIREMENTS:
-
-IMAGE 1 (PRODUCT): ${productCategory.trim()}
-→ Extract: Exact design, colors, patterns, textures, details
-→ Study: Fabric type, stitching, embellishments, fit style
-→ Preserve: Every design element must be replicated accurately
-→ IGNORE: Background, lighting, and staging from this image
-
-IMAGE 2 (MODEL/CLIENT):
-→ Face: Exact facial features, skin tone, expressions
-→ Study: Face shape, eyes, nose, mouth, hair style and color
-→ Preserve: Natural appearance and authentic look
-→ IMPORTANT: Use fashion model body proportions (face is from client, body is professional model standard)
+PRODUCT ACCURACY (CRITICAL):
+- Exact colors from reference (true-to-life, prevents returns)
+- All patterns, textures, design details preserved
+- Material quality clearly visible (fabric weave, stitching)
+- Product fits naturally on model body
+- Fabric drape follows body contours realistically
 
 `;
 
-  // Critical scene handling
+  // Enhanced scene integration
   if (sceneDescription?.trim()) {
-    prompt += `🌍 BACKGROUND & SCENE - CRITICAL INSTRUCTIONS 🌍
+    prompt += `SCENE CREATION (CRITICAL - NEW BACKGROUND):
+⚠️ DISCARD Image 1 background completely
+CREATE NEW ENVIRONMENT: ${sceneDescription.trim()}
 
-⚠️ MANDATORY BACKGROUND CHANGE ⚠️
-COMPLETELY DISCARD the background from image 1.
-CREATE AN ENTIRELY NEW ENVIRONMENT: ${sceneDescription.trim()}
-
-Background Creation Rules:
-1. The setting MUST BE: ${sceneDescription.trim()}
-2. DO NOT carry over ANY background elements from the product image
-3. CREATE a fresh, new environment from scratch
-4. Only the product DESIGN transfers from image 1, NOT the context/background
-5. Imagine you're photographing the person in this completely new location
-
-Environmental Details to Include:
-- Setting description: ${sceneDescription.trim()}
-- Appropriate props, furniture, and scene elements
-- Lighting that matches this new environment
-- Atmospheric elements (if outdoor: weather, time of day; if indoor: decor, ambiance)
-- Realistic integration of model into this specific scene
+Integration requirements:
+- Model + product naturally present in this new setting
+- Appropriate props, furniture, atmospheric elements
+- Lighting matches environment (sun, window, studio as appropriate)
+- Realistic perspective and scale
+- Professional lifestyle photography quality
 
 `;
   } else {
-    prompt += `🌍 BACKGROUND & SCENE 🌍
-
-Create a professional photography background appropriate for ${productCategory.trim()}:
-- Studio setup with professional lighting, OR
-- Lifestyle setting that matches the product category
+    prompt += `BACKGROUND SELECTION:
+- Professional studio lighting OR lifestyle setting for ${productCategory.trim()}
 - Clean, modern, commercially appropriate
-- Enhances the product without competing for attention
+- Enhances product without competing for attention
 
 `;
   }
 
-  // CRITICAL: Enhanced face integration system
-  prompt += `🔴🔴🔴 FACE INTEGRATION - MOST CRITICAL SECTION 🔴🔴🔴
+  // CRITICAL: Face blending
+  prompt += `🔴 FACE BLENDING - HIGHEST PRIORITY 🔴
 
-PROBLEM TO SOLVE: "Pasted face" effect where the face looks artificially placed.
+UNIFIED LIGHTING (Prevents "Pasted Face" Look):
 
-⚡ UNIFIED LIGHTING SYSTEM (The Key to Natural Integration) ⚡
+Step 1 - Analyze Scene Light:
+- Primary source? (sun, window, studio, ambient)
+- Direction? (front, side, back, top)
+- Quality? (hard shadows or soft diffused)
+- Intensity? (bright or dim)
+- Temperature? (warm/golden or cool/blue)
 
-STEP 1: ANALYZE THE SCENE LIGHTING
-- What is the primary light source? (sun, window, studio light, ambient)
-- What is the light direction? (front, side, back, top)
-- What is the light quality? (hard/sharp shadows or soft/diffused)
-- What is the light intensity? (bright/high-key or dim/low-key)
-- What is the color temperature? (warm/golden or cool/blue or neutral)
+Step 2 - Match Face to Scene Exactly:
+- Face lit by SAME source as environment
+- Shadow direction on face matches scene shadows
+- Shadow intensity identical (face shadows = object shadows)
+- Highlight brightness matches environment highlights
+- Color temperature unified (warm scene = warm face, cool scene = cool face)
 
-STEP 2: MATCH FACE LIGHTING TO SCENE EXACTLY
-The face must be lit by the SAME light source as the environment.
+Step 3 - Integration Details:
+- Eyes reflect scene light sources (window in scene = window in eyes)
+- Skin tone shifts with lighting (golden hour = warm skin, overcast = neutral)
+- Face receives same atmospheric effects (fog, haze, color bounce from surfaces)
+- Rim lighting if backlit scene
+- Fill light matches ambient environment
 
-Lighting Matching Rules:
-┌─────────────────────────────────────────────────────┐
-│ IF SCENE IS...        │ THEN FACE MUST BE...        │
-├─────────────────────────────────────────────────────┤
-│ Bright outdoor sun    │ Bright with strong shadows  │
-│ Golden hour/sunset    │ Warm golden glow on skin    │
-│ Overcast/cloudy       │ Soft, even, diffused light  │
-│ Indoor window light   │ Directional with soft fall  │
-│ Studio bright         │ Even, professional lighting │
-│ Dim/moody/dark        │ Low-key, subtle highlights  │
-│ Neon/colored lights   │ Colored light reflections   │
-│ Backlit               │ Rim light, darker front     │
-└─────────────────────────────────────────────────────┘
+VERIFICATION QUESTIONS:
+1. Does face brightness match overall image brightness?
+2. Are shadows pointing the same direction?
+3. Same color temperature throughout?
+4. Would this look like ONE photograph taken together?
 
-STEP 3: COLOR TEMPERATURE HARMONY
-Face and environment must share the same color grading:
-- Warm scene (golden, orange, red hues) → Warm face lighting
-- Cool scene (blue, teal, silver hues) → Cool face lighting
-- Neutral scene → Neutral face lighting
-- Mixed lighting → Face reflects the dominant color temperature
+If ANY answer is NO → Fix lighting integration before finalizing.
 
-STEP 4: SHADOW & HIGHLIGHT CONSISTENCY
-Face shadows must match scene shadows:
-- Shadow direction: Face shadows point the same way as object shadows
-- Shadow intensity: Face shadow darkness matches environment shadow darkness
-- Highlight brightness: Face highlights match environment highlight brightness
-- Contrast ratio: Face contrast (highlights to shadows) matches scene contrast
-
-STEP 5: ATMOSPHERIC INTEGRATION
-Face must interact with environmental elements:
-- Fog/haze: Face visibility reduced to match scene haze level
-- Dust/particles: Face receives same atmospheric filtering
-- Reflections: Face catches reflections from nearby surfaces (water, glass, metal)
-- Ambient bounce: Face receives color bounce from nearby colored surfaces
-
-🎯 ADVANCED INTEGRATION TECHNIQUES 🎯
-
-Subsurface Scattering:
-- In bright scenes: Skin shows slight translucency on edges (ears, nose)
-- Matches environmental lighting intensity
-
-Rim Lighting:
-- If scene has backlight: Face gets rim light on edges
-- Rim light color matches scene backlight color
-
-Fill Light Calculation:
-- Indoor scenes: Walls provide fill light (face receives this ambient fill)
-- Outdoor scenes: Sky provides fill (face receives skylight fill)
-- Fill intensity: Proportional to scene's ambient light level
-
-Eye Light (Catchlights):
-- Eyes reflect the same light sources visible in the scene
-- Window in scene → Window reflection in eyes
-- Studio light → Studio light reflection in eyes
-- Outdoor → Sky reflection in eyes
-
-Skin Tone Temperature Shift:
-- Morning light: Slightly cooler skin tones
-- Afternoon: Neutral skin tones
-- Golden hour: Warm, golden skin tones
-- Indoor tungsten: Warm, orange-shifted skin
-- Indoor fluorescent: Cool, slightly green skin
-
-⚠️ CRITICAL VERIFICATION QUESTIONS ⚠️
-Before finalizing, ask yourself:
-1. "If I photographed this person in this location, would the face look exactly like this?"
-2. "Does the face brightness match the overall image brightness within 10%?"
-3. "Are the shadows on the face pointing in the same direction as shadows in the scene?"
-4. "Does the face have the same color temperature as the environment?"
-5. "Would a photographer need to adjust lighting on the face if this were a real photo?"
-
-If ANY answer is "needs adjustment" → FIX THE LIGHTING INTEGRATION.
-
-🎨 COLOR GRADING UNITY 🎨
-
-Post-Processing Consistency:
-- Apply the SAME color grade to face and environment
-- Faces should not look like they're from a different photograph
-- Saturation levels: Face saturation matches scene saturation
-- Exposure: Face exposure integrated with scene exposure
-- Tonal curve: Same curve applied to entire image including face
+COMPOSITING QUALITY:
+- No visible seams or edges
+- Face, body, garment, background look like single photograph
+- Professional seamless integration
+- No floating or disconnected elements
 
 `;
 
-  // Enhanced photography standards
-  prompt += `📷 PROFESSIONAL PHOTOGRAPHY STANDARDS 📷
-
-Composition:
-- Natural, relaxed pose showing both face and product clearly
-- Model positioned appropriately within the scene (not floating)
-- Product displayed prominently with clear visibility
-- Eye-level or appropriate angle for product category
-
-Body Proportions:
-- Use professional fashion model body proportions
-- Only the FACE comes from image 2
-- Body type should be standard fashion model build (appropriate for product display)
-- Height, build, and proportions optimized for fashion photography
-
-Technical Quality:
-- DSLR-level sharpness (50mm f/1.8 or 85mm f/1.4 look)
-- Professional depth of field (subject sharp, background slightly soft)
+  // Professional standards
+  prompt += `PHOTOGRAPHY STANDARDS:
+- DSLR quality (50mm f/1.8 or 85mm f/1.4 aesthetic)
+- Tack-sharp focus on product details
+- Professional depth of field (subject sharp, background soft)
 - Natural skin retouching (professional but realistic)
-- Perfect color accuracy for product and skin tones
-- No visible compositing artifacts or "cut-and-paste" appearance
+- Even lighting, no harsh shadows or blown highlights
 
-Product Integration:
-- Product must fit naturally on the model's body
-- Fabric drape should follow body contours realistically
-- No floating or disconnected product parts
-- Product color and texture accurate to image 1
-
-Final Unity Check:
-✓ Face, body, product, and background look like ONE photograph
-✓ No elements look artificially composited or "pasted in"
-✓ Lighting is cohesive across all elements
-✓ Color grading is uniform throughout the image
-✓ Professional quality suitable for e-commerce and marketing
+COMPOSITION:
+- Natural relaxed pose showing face and product clearly
+- Product occupies 60-75% of frame
+- Appropriate angle for ${productCategory.trim()}
+- ${aspectRatio} aspect ratio
+- Professional model positioning in scene (not floating)
 
 `;
 
-  // Enhanced text overlay system (same as simple prompt)
+  // Text overlay (same system as simple prompt)
   if (priceOverlay?.trim()) {
-    const text = priceOverlay.trim();
-    const isCommaSeparated = text.includes(',');
+    const elements = priceOverlay.split(',').map(t => t.trim()).filter(t => t);
     
-    if (isCommaSeparated) {
-      const elements = text.split(',').map(item => item.trim()).filter(item => item);
-      
-      prompt += `🎯 TEXT OVERLAY - PROFESSIONAL ACCURACY REQUIRED 🎯
+    prompt += `TEXT OVERLAY - INTELLIGENT BANNER DESIGN:
+Text elements: ${elements.map((e, i) => `${i + 1}. "${e}"`).join(', ')}
 
-TEXT ELEMENTS (in priority order): ${elements.map((item, index) => `"${item}"`).join(', ')}
+🤖 AI INSTRUCTION: Analyze the text content above and select the most appropriate banner style.
 
-⚠️ CRITICAL TEXT RULES - ZERO TOLERANCE FOR ERRORS ⚠️
-1. EXACT SPELLING: Copy every letter, number, symbol EXACTLY as provided
-2. NO AUTO-CORRECT: Do not fix spelling, grammar, or abbreviations
-3. NO MODIFICATIONS: Do not change "Rs" to "₹", "50%" to "fifty percent", etc.
-4. PRESERVE FORMATTING: Keep spaces, punctuation, capitalization exactly as given
-5. COMPLETE TEXT: Do not truncate, summarize, or skip any characters
+BANNER STYLE SELECTION LOGIC:
+1. Read each text element carefully
+2. Identify the content type (festival, sale, brand, contact, or generic)
+3. Choose the matching banner style from the options below
+4. Apply the style-specific design to that text element
 
-USER-DEFINED PRIORITY HIERARCHY:
-PRIMARY (Highest Impact): "${elements[0]}"
-→ Size: 40-50% larger than secondary elements
-→ Position: Top-left or center-top (first visual contact point)
-→ Styling: Bold, high-contrast, maximum visibility
+AVAILABLE BANNER STYLES:
 
-SECONDARY: ${elements[1] ? `"${elements[1]}"` : 'None'}
-→ Size: 60-70% of primary size
-→ Position: Top-right or beside primary
+**RIBBON BANNER** - Use when text contains:
+- Festival names: Diwali, Eid, Christmas, Navratri, Pongal, Holi, etc.
+- Celebration words: Festival, Celebration, Special Occasion
+→ Design: Diagonal or horizontal ribbon with folded edge, decorative corners
+→ Colors: Rich gold (#D4AF37), deep red (#C41E3A), festive green (#2E7D32)
+→ Effects: Warm glow, sparkle accents, ornamental details
+→ Position: Top-left diagonal or horizontal across top
 
-TERTIARY: ${elements[2] ? `"${elements[2]}"` : 'None'}
-→ Size: 50-60% of primary size
-→ Position: Bottom corners
+**BURST/EXPLOSION SHAPE** - Use when text contains:
+- Discounts: %, OFF, Sale, Discount, Deal, Flat
+- Numbers with %: "50%", "Up to 70%", "Flat 40% OFF"
+- Urgency: Limited, Flash, Hurry, Today Only
+→ Design: 8-12 point star burst or explosion shape
+→ Colors: Electric red (#FF3131), vibrant orange (#FF6B35), hot yellow (#FFD23F)
+→ Effects: Bold shadows (6-8px), thick borders (3-4px)
+→ Position: Top-left corner for maximum impact
 
-ADDITIONAL: ${elements.slice(3).length > 0 ? elements.slice(3).map(item => `"${item}"`).join(', ') : 'None'}
-→ Size: 40% of primary size
-→ Position: Edge placement
+**CORNER PEEL TAG** - Use when text contains:
+- Small discounts: Percentage symbols, short sale text
+- Quick offers: "New", "Hot", percentage badges
+→ Design: Sticker peeling from corner with curled edge
+→ Colors: Bright attention colors (red, orange, yellow)
+→ Effects: 3D curled edge shadow, lift-off appearance
+→ Position: Top-right or top-left corner
 
-Z-PATTERN LAYOUT + STYLING:
-- Professional visual hierarchy through size, color, positioning
-- Content-appropriate styling (festival colors, sale urgency, brand elegance)
-- Subtle shadows, 3D depth, rounded corners, premium borders
-- Product remains hero element with clear space
-- Maximum readability with strong contrast
+**FLOATING CARD** - Use when text contains:
+- Brand names: [Name] Textiles, [Name] Fashion, [Name] Boutique
+- Store names: Shop, Store, Collection, Designer, Couture
+- Elegant messaging: Premium, Exclusive, Luxury
+→ Design: Clean rectangular card with strong elevation shadow
+→ Colors: Black, white, navy, metallic gold (luxury palette)
+→ Effects: 6-8px shadow for floating effect, slight rounded corners (8-10px)
+→ Position: Top-center or bottom-center for prominence
 
-`;
-      
-    } else {
-      const hasPriceOffer = /(%|₹|\$|Rs\.?|OFF|Sale|Discount|Buy.*Get|Starting|Flat|\d+.*%|Offer|Deal)/i.test(text);
-      const hasFestival = /(Diwali|Deepavali|Eid|Christmas|Xmas|New Year|Holi|Dussehra|Navratri|Ganesh|Durga|Karva|Valentine|Mother|Father|Pongal|Onam)/i.test(text);
-      const hasContact = /(\d{10}|\d{3}[-.\s]?\d{3}[-.\s]?\d{4}|@|\.com|\.in|\.org|Call|Contact|Ph|Mobile|WhatsApp|Tel)/i.test(text);
-      const hasBrandName = /(Textiles|Fashion|Boutique|Store|Shop|Brand|Collection|Designer|Couture|Apparels|Garments|Co\.|Ltd|Pvt)/i.test(text);
-      
-      let styleType = 'generic';
-      if (hasFestival) styleType = 'festival';
-      else if (hasBrandName) styleType = 'brand';
-      else if (hasPriceOffer) styleType = 'price';
-      else if (hasContact) styleType = 'contact';
-      
-      prompt += `🎯 SINGLE TEXT OVERLAY - PROFESSIONAL ACCURACY 🎯
+**GLASSMORPHISM BANNER** - Use when text contains:
+- Modern brand names with contemporary feel
+- Premium product messaging
+- Tech-forward or minimalist brands
+→ Design: Semi-transparent frosted glass blur effect
+→ Colors: Any, but with 70-80% transparency and backdrop blur
+→ Effects: Thin border (1-2px), subtle gradient overlay
+→ Position: Anywhere, adaptable and modern
 
-TEXT TO DISPLAY: "${text}"
+**SMALL STICKER BADGE** - Use when text contains:
+- Phone numbers: 10 digits, formatted numbers
+- Email/website: @, .com, .in, .org
+- Contact words: Call, Contact, WhatsApp, Phone, Mobile
+→ Design: Small rounded rectangle, minimal effects
+→ Colors: Soft gray (#757575), muted blue (#546E7A), neutral tones
+→ Effects: Subtle shadow (2-3px), simple clean borders
+→ Position: Bottom-right or bottom-left corner (discreet)
 
-⚠️ CRITICAL: Copy EXACTLY as provided - no spelling fixes, no auto-correct, no modifications.
+**STICKER/BADGE (DEFAULT)** - Use when text doesn't match above:
+- Generic promotional text, product features, ambiguous content
+→ Design: Versatile rounded rectangle (12-15px corners)
+→ Colors: Based on overall image mood and contrast needs
+→ Effects: Standard shadow (4-6px), 2-3px borders
+→ Position: Top-left or top-center based on hierarchy
 
-SINGLE ELEMENT DESIGN (${styleType.toUpperCase()} STYLE):
-- Content-appropriate styling and positioning
-- Professional sticker effect with shadows, borders, rounded corners
-- High contrast for maximum readability
-- Non-intrusive placement preserving product focus
+EXAMPLE DECISION PROCESS:
+• "${elements[0]}" = "Diwali Sale 50% OFF" → BURST SHAPE with festive colors (sale dominant)
+• "${elements[0]}" = "Sharma Textiles" → FLOATING CARD with elegant black/white/gold
+• "${elements[0]}" = "Call: 9876543210" → SMALL STICKER BADGE, bottom corner, gray
+• "${elements[0]}" = "New Arrival" → STICKER/BADGE (default)
 
-`;
-    }
+📐 BANNER SIZING & HIERARCHY:
+- Primary "${elements[0]}": 40-50% image width, DOMINANT presence, top-left or center
+- Secondary "${elements[1] || 'N/A'}": 25-35% width, top-right or opposite corner, 60-70% size of primary
+- Tertiary "${elements[2] || 'N/A'}": 20-30% width, bottom corners, 50-60% size of primary
+- Additional elements: 15-25% width, edge placement, subtle
 
-    prompt += `VERIFICATION: Text matches input character-by-character with professional presentation.
+Z-PATTERN LAYOUT:
+┌─────────────────────────────┐
+│ PRIMARY ★        SECONDARY  │ ← Hot zone (immediate attention)
+│                             │
+│    [PRODUCT HERO SPACE]     │ ← Sacred zone (never block)
+│                             │
+│ TERTIARY        ADDITIONAL  │ ← Completion zone (balanced)
+└─────────────────────────────┘
 
-`;
-  } else {
-    prompt += `Create pure fashion photography with zero text overlay.
+VISUAL EFFECTS FOR ATTRACTIVENESS:
+- Drop shadows: 4-6px offset, 40-60% opacity, slight blur for depth
+- Borders: 2-4px solid or gradient for framing
+- Rounded corners: 12-15px for modern friendly look
+- Semi-transparent fills: 80-95% opacity for sophistication
+- Typography: Bold weights (700-900) for primary, medium (500-600) for secondary
+- High contrast: Minimum 4.5:1 ratio for readability
+
+LAYOUT PRECISION:
+- 8-10% margins from all edges (professional spacing)
+- Text never overlaps critical product details
+- Product occupies 60-75% of frame (hero element)
+- 15-20% empty space for breathing room
+- Balanced composition, non-cluttered premium look
+
+🎯 ATTRACTIVENESS GOAL:
+Make viewers STOP scrolling! Eye-catching enough to increase click-through rates.
+Instagram/Pinterest quality, modern, professional, premium e-commerce standard.
+
+NOTE: Text spelling accuracy will be verified in post-production.
 
 `;
   }
 
-  // Final specifications
-  prompt += `Output in aspect ratio ${aspectRatio}.
+  prompt += `COMPOSITION & FRAMING:
+- Product occupies 60-75% of frame (e-commerce standard)
+- Appropriate angle: Full body (complete outfits), Upper body (tops/jackets), Detail shots (intricate pieces)
+- Natural relaxed pose for models, elegant display for flat-lays
+- Rule of thirds or centered based on product
+- ${aspectRatio} aspect ratio
 
-🏆 FINAL QUALITY STANDARD 🏆
-The result must be indistinguishable from professional fashion photography by renowned e-commerce photographers. Should meet the quality standards of premium online retailers (Myntra, Zara, H&M) and fashion publications. Suitable for:
-- E-commerce product listings
-- Print catalogs
-- Social media advertising
-- Marketing materials
-- Brand campaigns
-
-Every element must look professionally photographed, not digitally composited.`;
+FINAL QUALITY BENCHMARKS:
+- Indistinguishable from Myntra, Zara, H&M product images
+- Suitable for e-commerce listings, print catalogs, social media ads
+- Professional enough for ${productCategory.trim()} at its price point
+- Ready for immediate publication (after text/color QA)`;
 
   return prompt;
 }
