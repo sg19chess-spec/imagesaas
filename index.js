@@ -810,8 +810,9 @@ function getUserPhoneFromPayload(decryptedBody) {
   return null;
 }
 // Enhanced Image Generation with BSP Integration
-async function generateImageAndSendToUser(decryptedBody, actualImageData, productCategory, sceneDescription, priceOverlay) {
-  console.log('🚀 Starting image generation and user notification...');
+async function generateImageAndSendToUser(decryptedBody, actualImageData, modelFaceData, productCategory, sceneDescription, priceOverlay) {  console.log('🚀 Starting image generation and user notification...');
+                                                                                                                                           console.log('Model face provided:', modelFaceData ? 'Yes' : 'No');
+                                                                                                                                           
   
   try {
     // Use phone from flow_token (passed explicitly) or extract from flow_token
@@ -834,11 +835,12 @@ async function generateImageAndSendToUser(decryptedBody, actualImageData, produc
 
     // Generate the actual image
     const imageUrl = await generateImageFromAi(
-      actualImageData,
-      productCategory.trim(),
-      sceneDescription,
-      priceOverlay
-    );
+  actualImageData,
+  modelFaceData,
+  productCategory.trim(),
+  sceneDescription,
+  priceOverlay
+);
     
     console.log('✅ Image generation successful:', imageUrl);
 
@@ -1236,12 +1238,131 @@ FINAL QUALITY: The result must be indistinguishable from professional fashion ma
 
   return prompt;
 }
+function createPromptWithModel(productCategory, sceneDescription = null, priceOverlay = null, aspectRatio = "1:1") {
+  if (!productCategory || !productCategory.trim()) {
+    return "Error: Product name is required";
+  }
+  
+  let prompt = `You are a world-class fashion photographer and commercial advertising designer.
+You have been provided with TWO images:
+1. FIRST IMAGE: The product - ${productCategory.trim()}
+2. SECOND IMAGE: A person's face that should be used as the model
 
+CRITICAL INSTRUCTIONS:
+- Use the EXACT face from the second image as the model in the final composition
+- The face should be recognizable and clearly the same person from the reference
+- Maintain the person's facial features, skin tone, and characteristics accurately
+- Create a premium-quality, photorealistic fashion visual showing the product from the first image
+- If the product is clothing/wearable, show it being worn by the model with the provided face
+- If the product is an accessory, show the model holding or displaying it appropriately
+- Recreate the EXACT same ${productCategory} design, style, color, pattern, and details from the first image
+- Do not change the product design, only enhance the photography quality and presentation
+
+`;
+
+  // Scene handling
+  if (sceneDescription?.trim()) {
+    prompt += `Set in this environment: ${sceneDescription.trim()}.
+
+`;
+  } else {
+    prompt += `BACKGROUND: Choose an appropriate fashion photography background that complements both the model and the product. Use professional studio lighting or a lifestyle setting that matches the product's purpose.
+
+`;
+  }
+
+  // Technical requirements
+  prompt += `ESSENTIAL FASHION PHOTOGRAPHY STANDARDS:
+- Showcase texture, fabric weave, stitching, and material quality with crystal clarity.
+- For clothing: demonstrate natural drape, fit, and how garments fall on the body.
+- Ensure perfect color accuracy - colors must appear exactly as in real life for e-commerce.
+- Highlight fine details: stitching quality, zippers, buttons, patterns, embellishments.
+- Use professional fashion lighting: soft, even illumination that enhances textures.
+- DSLR-level sharpness with authentic material representation and natural shadows.
+- The model's face must be clearly visible and match the provided reference face exactly.
+- Ensure natural, professional posing that showcases both the model and the product effectively.
+
+`;
+
+  // Overlay handling with user-defined priority system
+  if (priceOverlay?.trim()) {
+    const text = priceOverlay.trim();
+    
+    // Check if user provided comma-separated priority
+    const isCommaSeparated = text.includes(',');
+    
+    if (isCommaSeparated) {
+      // User-defined priority system
+      const elements = text.split(',').map(item => item.trim()).filter(item => item);
+      
+      prompt += `Overlay these elements in priority order: ${elements.map((item, index) => `"${item}"`).join(', ')}.
+CRITICAL: Do not change spelling, auto-correct, or modify any letters or characters.
+
+USER-DEFINED PRIORITY SYSTEM:
+- PRIMARY (Most Important): "${elements[0]}" - Largest size, most prominent styling.
+- SECONDARY: ${elements[1] ? `"${elements[1]}"` : 'None'} - Medium size, supporting the primary.
+- TERTIARY: ${elements[2] ? `"${elements[2]}"` : 'None'} - Smaller size, complementary styling.
+- ADDITIONAL: ${elements.slice(3).length > 0 ? elements.slice(3).map(item => `"${item}"`).join(', ') : 'None'} - Minimal size, subtle placement.
+
+Z-SHAPE FLOATING LAYOUT:
+- PRIMARY: Position at top-left corner or center-top area for maximum visibility.
+- SECONDARY: Place at top-right or beside primary element for natural eye flow.
+- TERTIARY: Position at bottom-left or bottom-right corner for completion.
+- ADDITIONAL: Float near edges or layer subtly without blocking the product.
+- AVOID: Vertical stacking, center placement that competes with product.
+
+STYLING REQUIREMENTS:
+- Use visual hierarchy through size, color, and positioning to show importance.
+- Apply content-appropriate styling (festive colors for festivals, bold colors for discounts, elegant fonts for brands).
+- Add subtle shadows, slight 3D effects, rounded corners, and premium borders for sticker appearance.
+- Ensure product remains the hero element with clear space around it.
+- Typography must be readable with strong contrast against background.`;
+      
+    } else {
+      // Single element or auto-detection fallback
+      const hasPriceOffer = /(%|₹|\$|Rs\.?|OFF|Sale|Discount|Buy.*Get|Starting|Flat|\d+.*%)/i.test(text);
+      const hasFestival = /(Diwali|Deepavali|Eid|Christmas|Xmas|New Year|Holi|Dussehra|Navratri|Ganesh|Durga|Karva|Valentine|Mother|Father)/i.test(text);
+      const hasContact = /(\d{10}|\d{3}[-.\s]?\d{3}[-.\s]?\d{4}|@|\.com|\.in|Call|Contact|Ph|Mobile|WhatsApp)/i.test(text);
+      const hasBrandName = /(Textiles|Fashion|Boutique|Store|Shop|Brand|Collection|Designer|Couture|Apparels|Garments)/i.test(text);
+      
+      // Auto-detect styling
+      let styleType = 'generic';
+      if (hasFestival) styleType = 'festival';
+      else if (hasBrandName) styleType = 'brand';
+      else if (hasPriceOffer) styleType = 'price';
+      else if (hasContact) styleType = 'contact';
+      
+      prompt += `Overlay ONLY this exact text: "${text}".
+CRITICAL: Do not change spelling, auto-correct, or modify any letters or characters.
+
+SINGLE ELEMENT DESIGN (${styleType.toUpperCase()} STYLE):
+- Apply appropriate styling based on content type.
+- STICKER CHARACTERISTICS: Add subtle shadows, slight 3D effect, rounded corners, and premium borders.
+- Position strategically ensuring the product remains the hero element.`;
+    }
+
+    prompt += `
+- Typography must be instantly readable with maximum visual contrast and separation from background.
+
+`;
+  } else {
+    prompt += `Create pure fashion photography with zero text overlay - let the product be the complete visual focus.
+
+`;
+  }
+
+  // Final specifications
+  prompt += `Output in aspect ratio ${aspectRatio}, optimized for fashion e-commerce and social media.
+FINAL QUALITY: The result must be indistinguishable from professional fashion magazine photography or premium online store imagery with perfect styling and commercial-grade presentation.`;
+
+  return prompt;
+}
 // Simplified Gemini API call
-async function generateImageFromAi(productImageBase64, productCategory, sceneDescription = null, priceOverlay = null) {
+async function generateImageFromAi(productImageBase64, modelFaceBase64, productCategory, sceneDescription = null, priceOverlay = null) {
   console.log('=== GENERATE IMAGE FROM AI ===');
   console.log('Parameters:');
   console.log('- productImageBase64 length:', productImageBase64 ? productImageBase64.length : 0);
+  console.log('- modelFaceBase64 length:', modelFaceBase64 ? modelFaceBase64.length : 0);
   console.log('- productCategory:', productCategory || 'MISSING');
   console.log('- sceneDescription:', sceneDescription || 'not provided');
   console.log('- priceOverlay:', priceOverlay || 'not provided');
@@ -1261,36 +1382,70 @@ async function generateImageFromAi(productImageBase64, productCategory, sceneDes
 
   console.log("Step 1: Cleaning base64 data...");
   
-  let cleanBase64 = productImageBase64;
+  // Clean product image base64
+  let cleanProductBase64 = productImageBase64;
   if (productImageBase64.startsWith('data:')) {
     const base64Index = productImageBase64.indexOf(',');
     if (base64Index !== -1) {
-      cleanBase64 = productImageBase64.substring(base64Index + 1);
-      console.log("✅ Data URL prefix removed, new length:", cleanBase64.length);
+      cleanProductBase64 = productImageBase64.substring(base64Index + 1);
+      console.log("✅ Product image data URL prefix removed, new length:", cleanProductBase64.length);
     }
   }
 
-  console.log("Step 2: Creating simple prompt...");
+  // Clean model face base64 if provided
+  let cleanModelBase64 = null;
+  if (modelFaceBase64) {
+    cleanModelBase64 = modelFaceBase64;
+    if (modelFaceBase64.startsWith('data:')) {
+      const base64Index = modelFaceBase64.indexOf(',');
+      if (base64Index !== -1) {
+        cleanModelBase64 = modelFaceBase64.substring(base64Index + 1);
+        console.log("✅ Model face data URL prefix removed, new length:", cleanModelBase64.length);
+      }
+    }
+  }
+
+  console.log("Step 2: Creating prompt...");
   
-  const simplePrompt = createSimplePrompt(productCategory, sceneDescription, priceOverlay);
-  console.log("Simple prompt:", simplePrompt);
+  // Use appropriate prompt based on whether model face is provided
+  const simplePrompt = cleanModelBase64 
+    ? createPromptWithModel(productCategory, sceneDescription, priceOverlay)
+    : createSimplePrompt(productCategory, sceneDescription, priceOverlay);
+  
+  console.log("Prompt created with model face:", !!cleanModelBase64);
 
   console.log("Step 3: Sending to Gemini API...");
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${apiKey}`;
 
+  // Build parts array
+  const parts = [
+    { text: simplePrompt }
+  ];
+
+  // Always add product image first
+  parts.push({
+    inlineData: {
+      mimeType: "image/jpeg",
+      data: cleanProductBase64
+    }
+  });
+
+  // Add model face if provided
+  if (cleanModelBase64) {
+    parts.push({
+      inlineData: {
+        mimeType: "image/jpeg",
+        data: cleanModelBase64
+      }
+    });
+    console.log("✅ Including model face in request");
+  }
+
   const requestBody = {
     contents: [
       {
-        parts: [
-          { text: simplePrompt },
-          {
-            inlineData: {
-              mimeType: "image/jpeg",
-              data: cleanBase64
-            }
-          }
-        ]
+        parts: parts
       }
     ],
     generationConfig: {
@@ -1356,7 +1511,6 @@ async function generateImageFromAi(productImageBase64, productCategory, sceneDes
     throw error;
   }
 }
-
 async function sendWhatsAppImageMessage(toE164, imageUrl, caption) {
   if (!toE164) throw new Error('Missing recipient phone number (E.164 format)');
   if (!imageUrl) throw new Error('Missing image URL');
@@ -1645,14 +1799,13 @@ async function handleDataExchange(decryptedBody) {
 
   // Handle image generation flow
   if (data && typeof data === 'object') {
-    const { scene_description, price_overlay, product_image, product_category } = data;
-
+    const { scene_description, price_overlay, product_image, model_face, product_category } = data;
     console.log('=== FIELD VALIDATION ===');
-    console.log('product_image:', product_image ? 'present' : 'MISSING (REQUIRED)');
-    console.log('product_category:', product_category ? `"${product_category}"` : 'MISSING (REQUIRED)');
-    console.log('scene_description:', scene_description ? `"${scene_description}"` : 'not provided (optional)');
-    console.log('price_overlay:', price_overlay ? `"${price_overlay}"` : 'not provided (optional)');
-
+console.log('product_image:', product_image ? 'present' : 'MISSING (REQUIRED)');
+console.log('model_face:', model_face ? 'present' : 'not provided (optional)');
+console.log('product_category:', product_category ? `"${product_category}"` : 'MISSING (REQUIRED)');
+console.log('scene_description:', scene_description ? `"${scene_description}"` : 'not provided (optional)');
+console.log('price_overlay:', price_overlay ? `"${price_overlay}"` : 'not provided (optional)');
     if (!product_image) {
       return {
         screen: 'COLLECT_IMAGE_SCENE',
@@ -1680,6 +1833,7 @@ async function handleDataExchange(decryptedBody) {
     }
 
     let actualImageData;
+    let modelFaceData = null;
     try {
       console.log('=== IMAGE PROCESSING ===');
       
@@ -1709,6 +1863,39 @@ async function handleDataExchange(decryptedBody) {
       }
       
       console.log('✅ Image processing successful');
+      // Process model face if provided
+if (model_face) {
+  console.log('=== MODEL FACE PROCESSING ===');
+  
+  if (Array.isArray(model_face) && model_face.length > 0) {
+    console.log('Processing WhatsApp model face array');
+    const firstFace = model_face[0];
+    
+    if (firstFace.encryption_metadata) {
+      console.log('Decrypting WhatsApp encrypted model face...');
+      modelFaceData = await decryptWhatsAppImage(firstFace);
+    } else if (firstFace.cdn_url) {
+      console.log('Fetching unencrypted model face from CDN...');
+      const response = await fetch(firstFace.cdn_url);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch model face: ${response.status}`);
+      }
+      const arrayBuffer = await response.arrayBuffer();
+      modelFaceData = Buffer.from(arrayBuffer).toString('base64');
+    } else {
+      throw new Error('Invalid model face format: no cdn_url or encryption_metadata found');
+    }
+  } else if (typeof model_face === 'string') {
+    console.log('Processing direct base64 string for model face...');
+    modelFaceData = model_face;
+  } else {
+    console.log('⚠️ Model face provided but in invalid format, skipping...');
+  }
+  
+  console.log('✅ Model face processing successful');
+} else {
+  console.log('ℹ️ No model face provided, continuing without it');
+}
       
     } catch (imageError) {
       console.error('❌ Image processing failed:', imageError);
@@ -1726,6 +1913,7 @@ async function handleDataExchange(decryptedBody) {
 generateImageAndSendToUser(
   { ...decryptedBody, userPhone },
   actualImageData,
+  modelFaceData,
   product_category.trim(),
   scene_description && scene_description.trim() ? scene_description.trim() : null,
   price_overlay && price_overlay.trim() ? price_overlay.trim() : null
