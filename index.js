@@ -1242,29 +1242,33 @@ function createPromptWithModel(productCategory, sceneDescription = null, priceOv
   if (!productCategory || !productCategory.trim()) {
     return "Error: Product name is required";
   }
-  
-  let prompt = `You are a world-class fashion photographer and commercial advertising designer.
-TWO IMAGES PROVIDED:
-1. Product: ${productCategory.trim()}
-2. Face reference (for model)
 
-🔴 CRITICAL INSTRUCTIONS:
-FACE: Copy ONLY the face from image 2 (eyes, nose, mouth, skin tone, hair) - 100% accuracy required
-BODY: Use fashion model body proportions (DO NOT copy body from face reference)
-PRODUCT: Exact design from image 1, worn/held by model with reference face
-FACE SWAP: If product shows a person, REPLACE their face. If mannequin, ADD face on model body.
+  let prompt = `Product Category: ${productCategory.trim()}
+Operation: Face Replacement or Addition
 
-ABSOLUTE PRIORITY INSTRUCTION - READ THIS FIRST:
-- The face from the second image is a LOCKED TEMPLATE.
-- Every facial feature must be replicated with 100% accuracy.
-- If the face is not recognizable as the same person, the generation has FAILED.
-- Create a premium-quality, photorealistic fashion visual showing the product from the first image
-- If the product is clothing/wearable, show it being worn by the model with the provided face
-- If the product is an accessory, show the model holding or displaying it appropriately
-- Recreate the EXACT same ${productCategory} design, style, color, pattern, and details from the first image
-- Do not change the product design, only enhance the photography quality and presentation
+Modes:
+1. If Image 1 already contains a face:
+   - Remove the existing face completely
+   - Replace it with the face from Image 2
+   - Keep body, product, clothing, pose, and background the same
+   - Final result must look like Image 2’s person is wearing the product
 
-`;
+2. If Image 1 has NO face (e.g., mannequin or plain product):
+   - Generate a realistic fashion model body wearing the product
+   - Use the face from Image 2 on this model
+   - Ensure body proportions are professional fashion-model style
+   - Product design, color, and fit must stay true to Image 1
+
+Critical Rules:
+- Only ONE face allowed in final result (from Image 2)
+- No blending/merging → full replacement or addition
+- Face must match angle, lighting, and perspective
+- Product must stay exactly the same as Image 1
+- The final result must clearly show that the face belongs to Image 2’s person
+
+Body: Fashion model proportions
+Product: Exact from Image 1
+Pose: Natural and professional`;
 
   // Scene handling
   if (sceneDescription?.trim()) {
