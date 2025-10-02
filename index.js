@@ -1253,7 +1253,7 @@ Modes:
    - Keep body, product, clothing, pose, and background the same
    - Final result must look like Image 2’s person is wearing the product
 
-2. If Image 1 has NO face (e.g., mannequin or plain product):
+2. If Image 1 has NO face (e.g., mannequin or plain product or headless picture):
    - Generate a realistic fashion model body wearing the product
    - Use the face from Image 2 on this model
    - Ensure body proportions are professional fashion-model style
@@ -1268,11 +1268,12 @@ Critical Rules:
 
 Body: Fashion model proportions
 Product: Exact from Image 1
-Pose: Natural and professional`;
+Pose: Natural and professional
+;
 
   // Scene handling
   if (sceneDescription?.trim()) {
-    prompt += `Set in this environment: ${sceneDescription.trim()}.
+    prompt += `Important : Set in this environment: ${sceneDescription.trim()}.
 
 `;
   } else {
