@@ -1120,184 +1120,124 @@ async function uploadGeneratedImageToSupabase(base64Data, mimeType) {
 
 // Simple prompt creation function
 function createSimplePrompt(productCategory, sceneDescription = null, priceOverlay = null, aspectRatio = "1:1") {
-  if (!productCategory?.trim()) return "Error: Product name required";
+  if (!productCategory || !productCategory.trim()) {
+    return "Error: Product name is required";
+  }
   
-  let prompt = `Professional fashion photography for ${productCategory.trim()}.
-
-PRODUCT ACCURACY (E-COMMERCE CRITICAL):
-- Exact colors, patterns, textures from reference - zero deviation
-- Preserve all design details: buttons, zippers, stitching, embellishments
-- True-to-life color accuracy (prevents returns)
-- Material type clearly identifiable (fabric weave, texture visible)
-- Show on attractive model if clothing, premium flat-lay if accessories
-
-TECHNICAL QUALITY:
-- DSLR-level sharpness (50mm f/1.8 look), tack-sharp focus
-- Professional depth of field (product sharp, background soft blur)
-- Even studio lighting, no harsh shadows or blown highlights
-- Natural shadows for depth, no crushed blacks
+  let prompt = `You are a world-class fashion photographer and commercial advertising designer. 
+Create a premium-quality, photorealistic fashion visual for: ${productCategory.trim()}.
+If there is an uploaded reference image, use it as your guide - recreate the EXACT same ${productCategory} design, style, color, pattern, and details shown in the reference. 
+Do not change the product design, only enhance the photography quality and presentation.
 
 `;
 
-  // Background with integration focus
+  // Prompt-based presentation decision
+  prompt += `PRESENTATION DECISION: Analyze "${productCategory.trim()}" and intelligently choose:
+- If this is clothing/garments/wearable fabric items → ALWAYS show on an attractive model with proper fit & styling.
+- If this is accessories/non-wearable items → ALWAYS use elegant flat-lay or premium product display without models.
+- Choose the best angle: full body (complete outfits), upper body (tops/jackets), detail shots (intricate pieces).
+- Be consistent: same product types should get identical presentation styles.
+
+`;
+
+  // Scene handling
   if (sceneDescription?.trim()) {
-    prompt += `SCENE & INTEGRATION:
-Environment: ${sceneDescription.trim()}
-- Consistent lighting throughout (product matches background)
-- Same color temperature across entire image
-- Product blends naturally (no floating or pasted look)
-- Realistic shadows and perspective
-- Professional lifestyle setting suitable for ${productCategory.trim()}
+    prompt += `Set in this environment: ${sceneDescription.trim()}.
 
 `;
   } else {
-    prompt += `BACKGROUND INTELLIGENCE:
-- Accessories → Studio with premium lighting, marble/silk surfaces, luxury display
-- Clothing → Fashion studio OR lifestyle setting matching garment purpose
-  (Office wear → professional setting, casual → relaxed environment, evening → elegant setting)
-- Clean, professional, no distracting elements
-- Consistent style for similar products
+    prompt += `BACKGROUND SELECTION: Intelligently choose based on product analysis:
+- For accessories/non-wearable items → Use studio with premium lighting, marble surfaces, silk draping, or luxury boutique display.
+- For clothing/wearable items → Use fashion studio lighting OR lifestyle setting that matches the garment's purpose (office wear in professional setting, casual wear in relaxed environment, evening wear in elegant setting).
+- Maintain consistency: similar products should get similar background treatments.
 
 `;
   }
 
-  // Text overlay with AI-driven banner selection
+  // Technical requirements
+  prompt += `ESSENTIAL FASHION PHOTOGRAPHY STANDARDS:
+- Showcase texture, fabric weave, stitching, and material quality with crystal clarity.
+- For clothing: demonstrate natural drape, fit, and how garments fall on the body.
+- Ensure perfect color accuracy - colors must appear exactly as in real life for e-commerce.
+- Highlight fine details: stitching quality, zippers, buttons, patterns, embellishments.
+- Use professional fashion lighting: soft, even illumination that enhances textures.
+- DSLR-level sharpness with authentic material representation and natural shadows.
+
+`;
+
+  // Overlay handling with user-defined priority system
   if (priceOverlay?.trim()) {
-    const elements = priceOverlay.split(',').map(t => t.trim()).filter(t => t);
+    const text = priceOverlay.trim();
     
-    prompt += `TEXT OVERLAY - INTELLIGENT BANNER DESIGN:
-Text elements: ${elements.map((e, i) => `${i + 1}. "${e}"`).join(', ')}
+    // Check if user provided comma-separated priority
+    const isCommaSeparated = text.includes(',');
+    
+    if (isCommaSeparated) {
+      // User-defined priority system
+      const elements = text.split(',').map(item => item.trim()).filter(item => item);
+      
+      prompt += `Overlay these elements in priority order: ${elements.map((item, index) => `"${item}"`).join(', ')}.
+CRITICAL: Do not change spelling, auto-correct, or modify any letters or characters.
 
-🤖 AI INSTRUCTION: Analyze the text content above and select the most appropriate banner style.
+USER-DEFINED PRIORITY SYSTEM:
+- PRIMARY (Most Important): "${elements[0]}" - Largest size, most prominent styling.
+- SECONDARY: ${elements[1] ? `"${elements[1]}"` : 'None'} - Medium size, supporting the primary.
+- TERTIARY: ${elements[2] ? `"${elements[2]}"` : 'None'} - Smaller size, complementary styling.
+- ADDITIONAL: ${elements.slice(3).length > 0 ? elements.slice(3).map(item => `"${item}"`).join(', ') : 'None'} - Minimal size, subtle placement.
 
-BANNER STYLE SELECTION LOGIC:
-1. Read each text element carefully
-2. Identify the content type (festival, sale, brand, contact, or generic)
-3. Choose the matching banner style from the options below
-4. Apply the style-specific design to that text element
+Z-SHAPE FLOATING LAYOUT:
+- PRIMARY: Position at top-left corner or center-top area for maximum visibility.
+- SECONDARY: Place at top-right or beside primary element for natural eye flow.
+- TERTIARY: Position at bottom-left or bottom-right corner for completion.
+- ADDITIONAL: Float near edges or layer subtly without blocking the product.
+- AVOID: Vertical stacking, center placement that competes with product.
 
-AVAILABLE BANNER STYLES:
+STYLING REQUIREMENTS:
+- Use visual hierarchy through size, color, and positioning to show importance.
+- Apply content-appropriate styling (festive colors for festivals, bold colors for discounts, elegant fonts for brands).
+- Add subtle shadows, slight 3D effects, rounded corners, and premium borders for sticker appearance.
+- Ensure product remains the hero element with clear space around it.
+- Typography must be readable with strong contrast against background.`;
+      
+    } else {
+      // Single element or auto-detection fallback
+      const hasPriceOffer = /(%|₹|\$|Rs\.?|OFF|Sale|Discount|Buy.*Get|Starting|Flat|\d+.*%)/i.test(text);
+      const hasFestival = /(Diwali|Deepavali|Eid|Christmas|Xmas|New Year|Holi|Dussehra|Navratri|Ganesh|Durga|Karva|Valentine|Mother|Father)/i.test(text);
+      const hasContact = /(\d{10}|\d{3}[-.\s]?\d{3}[-.\s]?\d{4}|@|\.com|\.in|Call|Contact|Ph|Mobile|WhatsApp)/i.test(text);
+      const hasBrandName = /(Textiles|Fashion|Boutique|Store|Shop|Brand|Collection|Designer|Couture|Apparels|Garments)/i.test(text);
+      
+      // Auto-detect styling
+      let styleType = 'generic';
+      if (hasFestival) styleType = 'festival';
+      else if (hasBrandName) styleType = 'brand';
+      else if (hasPriceOffer) styleType = 'price';
+      else if (hasContact) styleType = 'contact';
+      
+      prompt += `Overlay ONLY this exact text: "${text}".
+CRITICAL: Do not change spelling, auto-correct, or modify any letters or characters.
 
-**RIBBON BANNER** - Use when text contains:
-- Festival names: Diwali, Eid, Christmas, Navratri, Pongal, Holi, etc.
-- Celebration words: Festival, Celebration, Special Occasion
-→ Design: Diagonal or horizontal ribbon with folded edge, decorative corners
-→ Colors: Rich gold (#D4AF37), deep red (#C41E3A), festive green (#2E7D32)
-→ Effects: Warm glow, sparkle accents, ornamental details
-→ Position: Top-left diagonal or horizontal across top
+SINGLE ELEMENT DESIGN (${styleType.toUpperCase()} STYLE):
+- Apply appropriate styling based on content type.
+- STICKER CHARACTERISTICS: Add subtle shadows, slight 3D effect, rounded corners, and premium borders.
+- Position strategically ensuring the product remains the hero element.`;
+    }
 
-**BURST/EXPLOSION SHAPE** - Use when text contains:
-- Discounts: %, OFF, Sale, Discount, Deal, Flat
-- Numbers with %: "50%", "Up to 70%", "Flat 40% OFF"
-- Urgency: Limited, Flash, Hurry, Today Only
-→ Design: 8-12 point star burst or explosion shape
-→ Colors: Electric red (#FF3131), vibrant orange (#FF6B35), hot yellow (#FFD23F)
-→ Effects: Bold shadows (6-8px), thick borders (3-4px)
-→ Position: Top-left corner for maximum impact
+    prompt += `
+- Typography must be instantly readable with maximum visual contrast and separation from background.
 
-**CORNER PEEL TAG** - Use when text contains:
-- Small discounts: Percentage symbols, short sale text
-- Quick offers: "New", "Hot", percentage badges
-→ Design: Sticker peeling from corner with curled edge
-→ Colors: Bright attention colors (red, orange, yellow)
-→ Effects: 3D curled edge shadow, lift-off appearance
-→ Position: Top-right or top-left corner
-
-**FLOATING CARD** - Use when text contains:
-- Brand names: [Name] Textiles, [Name] Fashion, [Name] Boutique
-- Store names: Shop, Store, Collection, Designer, Couture
-- Elegant messaging: Premium, Exclusive, Luxury
-→ Design: Clean rectangular card with strong elevation shadow
-→ Colors: Black, white, navy, metallic gold (luxury palette)
-→ Effects: 6-8px shadow for floating effect, slight rounded corners (8-10px)
-→ Position: Top-center or bottom-center for prominence
-
-**GLASSMORPHISM BANNER** - Use when text contains:
-- Modern brand names with contemporary feel
-- Premium product messaging
-- Tech-forward or minimalist brands
-→ Design: Semi-transparent frosted glass blur effect
-→ Colors: Any, but with 70-80% transparency and backdrop blur
-→ Effects: Thin border (1-2px), subtle gradient overlay
-→ Position: Anywhere, adaptable and modern
-
-**SMALL STICKER BADGE** - Use when text contains:
-- Phone numbers: 10 digits, formatted numbers
-- Email/website: @, .com, .in, .org
-- Contact words: Call, Contact, WhatsApp, Phone, Mobile
-→ Design: Small rounded rectangle, minimal effects
-→ Colors: Soft gray (#757575), muted blue (#546E7A), neutral tones
-→ Effects: Subtle shadow (2-3px), simple clean borders
-→ Position: Bottom-right or bottom-left corner (discreet)
-
-**STICKER/BADGE (DEFAULT)** - Use when text doesn't match above:
-- Generic promotional text, product features, ambiguous content
-→ Design: Versatile rounded rectangle (12-15px corners)
-→ Colors: Based on overall image mood and contrast needs
-→ Effects: Standard shadow (4-6px), 2-3px borders
-→ Position: Top-left or top-center based on hierarchy
-
-EXAMPLE DECISION PROCESS:
-• "${elements[0]}" = "Diwali Sale 50% OFF" → BURST SHAPE with festive colors (sale dominant)
-• "${elements[0]}" = "Sharma Textiles" → FLOATING CARD with elegant black/white/gold
-• "${elements[0]}" = "Call: 9876543210" → SMALL STICKER BADGE, bottom corner, gray
-• "${elements[0]}" = "New Arrival" → STICKER/BADGE (default)
-
-📐 BANNER SIZING & HIERARCHY:
-- Primary "${elements[0]}": 40-50% image width, DOMINANT presence, top-left or center
-- Secondary "${elements[1] || 'N/A'}": 25-35% width, top-right or opposite corner, 60-70% size of primary
-- Tertiary "${elements[2] || 'N/A'}": 20-30% width, bottom corners, 50-60% size of primary
-- Additional elements: 15-25% width, edge placement, subtle
-
-Z-PATTERN LAYOUT:
-┌─────────────────────────────┐
-│ PRIMARY ★        SECONDARY  │ ← Hot zone (immediate attention)
-│                             │
-│    [PRODUCT HERO SPACE]     │ ← Sacred zone (never block)
-│                             │
-│ TERTIARY        ADDITIONAL  │ ← Completion zone (balanced)
-└─────────────────────────────┘
-
-VISUAL EFFECTS FOR ATTRACTIVENESS:
-- Drop shadows: 4-6px offset, 40-60% opacity, slight blur for depth
-- Borders: 2-4px solid or gradient for framing
-- Rounded corners: 12-15px for modern friendly look
-- Semi-transparent fills: 80-95% opacity for sophistication
-- Typography: Bold weights (700-900) for primary, medium (500-600) for secondary
-- High contrast: Minimum 4.5:1 ratio for readability
-
-LAYOUT PRECISION:
-- 8-10% margins from all edges (professional spacing)
-- Text never overlaps critical product details
-- Product occupies 60-75% of frame (hero element)
-- 15-20% empty space for breathing room
-- Balanced composition, non-cluttered premium look
-
-🎯 ATTRACTIVENESS GOAL:
-Make viewers STOP scrolling! Eye-catching enough to increase click-through rates.
-Instagram/Pinterest quality, modern, professional, premium e-commerce standard.
-
-NOTE: Text spelling accuracy will be verified in post-production.
+`;
+  } else {
+    prompt += `Create pure fashion photography with zero text overlay - let the product be the complete visual focus.
 
 `;
   }
 
-  prompt += `COMPOSITION & FRAMING:
-- Product occupies 60-75% of frame (e-commerce standard)
-- Appropriate angle: Full body (complete outfits), Upper body (tops/jackets), Detail shots (intricate pieces)
-- Natural relaxed pose for models, elegant display for flat-lays
-- Rule of thirds or centered based on product
-- ${aspectRatio} aspect ratio
-
-FINAL QUALITY BENCHMARKS:
-- Indistinguishable from Myntra, Zara, H&M product images
-- Suitable for e-commerce listings, print catalogs, social media ads
-- Professional enough for ${productCategory.trim()} at its price point
-- Ready for immediate publication (after text/color QA)`;
+  // Final specifications
+  prompt += `Output in aspect ratio ${aspectRatio}, optimized for fashion e-commerce and social media.
+FINAL QUALITY: The result must be indistinguishable from professional fashion magazine photography or premium online store imagery with perfect styling and commercial-grade presentation.`;
 
   return prompt;
 }
-
 function createPromptWithModel(productCategory, sceneDescription = null, priceOverlay = null, aspectRatio = "1:1") {
   if (!productCategory?.trim()) return "Error: Product name required";
   
@@ -1384,7 +1324,7 @@ COMPOSITING QUALITY:
 
   // Professional standards
   prompt += `PHOTOGRAPHY STANDARDS:
-- DSLR quality (50mm f/1.8 or 85mm f/1.4 aesthetic)
+- DSLR quality 
 - Tack-sharp focus on product details
 - Professional depth of field (subject sharp, background soft)
 - Natural skin retouching (professional but realistic)
@@ -1401,137 +1341,74 @@ COMPOSITION:
 
   // Text overlay (same system as simple prompt)
   if (priceOverlay?.trim()) {
-    const elements = priceOverlay.split(',').map(t => t.trim()).filter(t => t);
+    const text = priceOverlay.trim();
     
-    prompt += `TEXT OVERLAY - INTELLIGENT BANNER DESIGN:
-Text elements: ${elements.map((e, i) => `${i + 1}. "${e}"`).join(', ')}
+    // Check if user provided comma-separated priority
+    const isCommaSeparated = text.includes(',');
+    
+    if (isCommaSeparated) {
+      // User-defined priority system
+      const elements = text.split(',').map(item => item.trim()).filter(item => item);
+      
+      prompt += `Overlay these elements in priority order: ${elements.map((item, index) => `"${item}"`).join(', ')}.
+CRITICAL: Do not change spelling, auto-correct, or modify any letters or characters.
 
-🤖 AI INSTRUCTION: Analyze the text content above and select the most appropriate banner style.
+USER-DEFINED PRIORITY SYSTEM:
+- PRIMARY (Most Important): "${elements[0]}" - Largest size, most prominent styling.
+- SECONDARY: ${elements[1] ? `"${elements[1]}"` : 'None'} - Medium size, supporting the primary.
+- TERTIARY: ${elements[2] ? `"${elements[2]}"` : 'None'} - Smaller size, complementary styling.
+- ADDITIONAL: ${elements.slice(3).length > 0 ? elements.slice(3).map(item => `"${item}"`).join(', ') : 'None'} - Minimal size, subtle placement.
 
-BANNER STYLE SELECTION LOGIC:
-1. Read each text element carefully
-2. Identify the content type (festival, sale, brand, contact, or generic)
-3. Choose the matching banner style from the options below
-4. Apply the style-specific design to that text element
+Z-SHAPE FLOATING LAYOUT:
+- PRIMARY: Position at top-left corner or center-top area for maximum visibility.
+- SECONDARY: Place at top-right or beside primary element for natural eye flow.
+- TERTIARY: Position at bottom-left or bottom-right corner for completion.
+- ADDITIONAL: Float near edges or layer subtly without blocking the product.
+- AVOID: Vertical stacking, center placement that competes with product.
 
-AVAILABLE BANNER STYLES:
+STYLING REQUIREMENTS:
+- Use visual hierarchy through size, color, and positioning to show importance.
+- Apply content-appropriate styling (festive colors for festivals, bold colors for discounts, elegant fonts for brands).
+- Add subtle shadows, slight 3D effects, rounded corners, and premium borders for sticker appearance.
+- Ensure product remains the hero element with clear space around it.
+- Typography must be readable with strong contrast against background.`;
+      
+    } else {
+      // Single element or auto-detection fallback
+      const hasPriceOffer = /(%|₹|\$|Rs\.?|OFF|Sale|Discount|Buy.*Get|Starting|Flat|\d+.*%)/i.test(text);
+      const hasFestival = /(Diwali|Deepavali|Eid|Christmas|Xmas|New Year|Holi|Dussehra|Navratri|Ganesh|Durga|Karva|Valentine|Mother|Father)/i.test(text);
+      const hasContact = /(\d{10}|\d{3}[-.\s]?\d{3}[-.\s]?\d{4}|@|\.com|\.in|Call|Contact|Ph|Mobile|WhatsApp)/i.test(text);
+      const hasBrandName = /(Textiles|Fashion|Boutique|Store|Shop|Brand|Collection|Designer|Couture|Apparels|Garments)/i.test(text);
+      
+      // Auto-detect styling
+      let styleType = 'generic';
+      if (hasFestival) styleType = 'festival';
+      else if (hasBrandName) styleType = 'brand';
+      else if (hasPriceOffer) styleType = 'price';
+      else if (hasContact) styleType = 'contact';
+      
+      prompt += `Overlay ONLY this exact text: "${text}".
+CRITICAL: Do not change spelling, auto-correct, or modify any letters or characters.
 
-**RIBBON BANNER** - Use when text contains:
-- Festival names: Diwali, Eid, Christmas, Navratri, Pongal, Holi, etc.
-- Celebration words: Festival, Celebration, Special Occasion
-→ Design: Diagonal or horizontal ribbon with folded edge, decorative corners
-→ Colors: Rich gold (#D4AF37), deep red (#C41E3A), festive green (#2E7D32)
-→ Effects: Warm glow, sparkle accents, ornamental details
-→ Position: Top-left diagonal or horizontal across top
+SINGLE ELEMENT DESIGN (${styleType.toUpperCase()} STYLE):
+- Apply appropriate styling based on content type.
+- STICKER CHARACTERISTICS: Add subtle shadows, slight 3D effect, rounded corners, and premium borders.
+- Position strategically ensuring the product remains the hero element.`;
+    }
 
-**BURST/EXPLOSION SHAPE** - Use when text contains:
-- Discounts: %, OFF, Sale, Discount, Deal, Flat
-- Numbers with %: "50%", "Up to 70%", "Flat 40% OFF"
-- Urgency: Limited, Flash, Hurry, Today Only
-→ Design: 8-12 point star burst or explosion shape
-→ Colors: Electric red (#FF3131), vibrant orange (#FF6B35), hot yellow (#FFD23F)
-→ Effects: Bold shadows (6-8px), thick borders (3-4px)
-→ Position: Top-left corner for maximum impact
+    prompt += `
+- Typography must be instantly readable with maximum visual contrast and separation from background.
 
-**CORNER PEEL TAG** - Use when text contains:
-- Small discounts: Percentage symbols, short sale text
-- Quick offers: "New", "Hot", percentage badges
-→ Design: Sticker peeling from corner with curled edge
-→ Colors: Bright attention colors (red, orange, yellow)
-→ Effects: 3D curled edge shadow, lift-off appearance
-→ Position: Top-right or top-left corner
-
-**FLOATING CARD** - Use when text contains:
-- Brand names: [Name] Textiles, [Name] Fashion, [Name] Boutique
-- Store names: Shop, Store, Collection, Designer, Couture
-- Elegant messaging: Premium, Exclusive, Luxury
-→ Design: Clean rectangular card with strong elevation shadow
-→ Colors: Black, white, navy, metallic gold (luxury palette)
-→ Effects: 6-8px shadow for floating effect, slight rounded corners (8-10px)
-→ Position: Top-center or bottom-center for prominence
-
-**GLASSMORPHISM BANNER** - Use when text contains:
-- Modern brand names with contemporary feel
-- Premium product messaging
-- Tech-forward or minimalist brands
-→ Design: Semi-transparent frosted glass blur effect
-→ Colors: Any, but with 70-80% transparency and backdrop blur
-→ Effects: Thin border (1-2px), subtle gradient overlay
-→ Position: Anywhere, adaptable and modern
-
-**SMALL STICKER BADGE** - Use when text contains:
-- Phone numbers: 10 digits, formatted numbers
-- Email/website: @, .com, .in, .org
-- Contact words: Call, Contact, WhatsApp, Phone, Mobile
-→ Design: Small rounded rectangle, minimal effects
-→ Colors: Soft gray (#757575), muted blue (#546E7A), neutral tones
-→ Effects: Subtle shadow (2-3px), simple clean borders
-→ Position: Bottom-right or bottom-left corner (discreet)
-
-**STICKER/BADGE (DEFAULT)** - Use when text doesn't match above:
-- Generic promotional text, product features, ambiguous content
-→ Design: Versatile rounded rectangle (12-15px corners)
-→ Colors: Based on overall image mood and contrast needs
-→ Effects: Standard shadow (4-6px), 2-3px borders
-→ Position: Top-left or top-center based on hierarchy
-
-EXAMPLE DECISION PROCESS:
-• "${elements[0]}" = "Diwali Sale 50% OFF" → BURST SHAPE with festive colors (sale dominant)
-• "${elements[0]}" = "Sharma Textiles" → FLOATING CARD with elegant black/white/gold
-• "${elements[0]}" = "Call: 9876543210" → SMALL STICKER BADGE, bottom corner, gray
-• "${elements[0]}" = "New Arrival" → STICKER/BADGE (default)
-
-📐 BANNER SIZING & HIERARCHY:
-- Primary "${elements[0]}": 40-50% image width, DOMINANT presence, top-left or center
-- Secondary "${elements[1] || 'N/A'}": 25-35% width, top-right or opposite corner, 60-70% size of primary
-- Tertiary "${elements[2] || 'N/A'}": 20-30% width, bottom corners, 50-60% size of primary
-- Additional elements: 15-25% width, edge placement, subtle
-
-Z-PATTERN LAYOUT:
-┌─────────────────────────────┐
-│ PRIMARY ★        SECONDARY  │ ← Hot zone (immediate attention)
-│                             │
-│    [PRODUCT HERO SPACE]     │ ← Sacred zone (never block)
-│                             │
-│ TERTIARY        ADDITIONAL  │ ← Completion zone (balanced)
-└─────────────────────────────┘
-
-VISUAL EFFECTS FOR ATTRACTIVENESS:
-- Drop shadows: 4-6px offset, 40-60% opacity, slight blur for depth
-- Borders: 2-4px solid or gradient for framing
-- Rounded corners: 12-15px for modern friendly look
-- Semi-transparent fills: 80-95% opacity for sophistication
-- Typography: Bold weights (700-900) for primary, medium (500-600) for secondary
-- High contrast: Minimum 4.5:1 ratio for readability
-
-LAYOUT PRECISION:
-- 8-10% margins from all edges (professional spacing)
-- Text never overlaps critical product details
-- Product occupies 60-75% of frame (hero element)
-- 15-20% empty space for breathing room
-- Balanced composition, non-cluttered premium look
-
-🎯 ATTRACTIVENESS GOAL:
-Make viewers STOP scrolling! Eye-catching enough to increase click-through rates.
-Instagram/Pinterest quality, modern, professional, premium e-commerce standard.
-
-NOTE: Text spelling accuracy will be verified in post-production.
+`;
+  } else {
+    prompt += `Create pure fashion photography with zero text overlay - let the product be the complete visual focus.
 
 `;
   }
 
-  prompt += `COMPOSITION & FRAMING:
-- Product occupies 60-75% of frame (e-commerce standard)
-- Appropriate angle: Full body (complete outfits), Upper body (tops/jackets), Detail shots (intricate pieces)
-- Natural relaxed pose for models, elegant display for flat-lays
-- Rule of thirds or centered based on product
-- ${aspectRatio} aspect ratio
-
-FINAL QUALITY BENCHMARKS:
-- Indistinguishable from Myntra, Zara, H&M product images
-- Suitable for e-commerce listings, print catalogs, social media ads
-- Professional enough for ${productCategory.trim()} at its price point
-- Ready for immediate publication (after text/color QA)`;
+  // Final specifications
+  prompt += `Output in aspect ratio ${aspectRatio}, optimized for fashion e-commerce and social media.
+FINAL QUALITY: The result must be indistinguishable from professional fashion magazine photography or premium online store imagery with perfect styling and commercial-grade presentation.`;
 
   return prompt;
 }
