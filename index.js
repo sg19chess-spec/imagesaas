@@ -1248,10 +1248,10 @@ You have been provided with TWO images:
 1. FIRST IMAGE: The product - ${productCategory.trim()}
 2. SECOND IMAGE: A person's face that should be used as the model
 
-CRITICAL INSTRUCTIONS:
-- Use the EXACT face from the second image as the model in the final composition
-- The face should be recognizable and clearly the same person from the reference
-- Maintain the person's facial features, skin tone, and characteristics accurately
+ABSOLUTE PRIORITY INSTRUCTION - READ THIS FIRST:
+- The face from the second image is a LOCKED TEMPLATE.
+- Every facial feature must be replicated with 100% accuracy.
+- If the face is not recognizable as the same person, the generation has FAILED.
 - Create a premium-quality, photorealistic fashion visual showing the product from the first image
 - If the product is clothing/wearable, show it being worn by the model with the provided face
 - If the product is an accessory, show the model holding or displaying it appropriately
