@@ -1265,6 +1265,7 @@ Critical Rules:
 - Face must match angle, lighting, and perspective
 - Product must stay exactly the same as Image 1
 - The final result must clearly show that the face belongs to Image 2’s person
+- Background should be the user given if user didnt give use appropriate
 
 Body: Fashion model proportions
 Product: Exact from Image 1
@@ -1273,7 +1274,7 @@ Pose: Natural and professional
 
   // Scene handling
   if (sceneDescription?.trim()) {
-    prompt += `Important : Set in this environment: ${sceneDescription.trim()}.
+    prompt += `Set in this environment: ${sceneDescription.trim()}.
 
 `;
   } else {
