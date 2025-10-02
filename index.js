@@ -1243,55 +1243,91 @@ function createPromptWithModel(productCategory, sceneDescription = null, priceOv
     return "Error: Product name is required";
   }
 
-  let prompt = `Product Category: ${productCategory.trim()}
-Operation: Face Replacement or Addition
+  let prompt = `Professional fashion photographer for e-commerce product shoots.
 
-Modes:
-1. If Image 1 already contains a face:
-   - Remove the existing face completely
-   - Replace it with the face from Image 2
-   - Keep body, product, clothing, pose, and background the same
-   - Final result must look like Image 2’s person is wearing the product
+ASSIGNMENT:
+Your client (image 2) needs a professional photo of themselves wearing their product (image 1: ${productCategory.trim()}).
 
-2. If Image 1 has NO face (e.g., mannequin or plain product):
-   - Generate a realistic fashion model body wearing the product
-   - Use the face from Image 2 on this model
-   - Ensure body proportions are professional fashion-model style
-   - Product design, color, and fit must stay true to Image 1
+CLIENT APPEARANCE (from image 2):
+Study the person's face carefully - their exact features, skin tone, hair, and expression.
+This is your model - photograph them accurately as they appear.
 
-Critical Rules (no compromise):
-- Only ONE face allowed in final result (from Image 2)
-- No blending/merging → full replacement or addition
-- Face must match angle, lighting, and perspective
-- Product must stay exactly the same as Image 1
-- The final result must clearly show that the face belongs to Image 2’s person
+PRODUCT (from image 1):
+${productCategory.trim()} - exact design, colors, and style as shown.
 
-Body: Fashion model proportions
-Product: Exact from Image 1
-Pose: Natural and professional
-background:user given`;
+`;
 
-  // Scene handling
+  // CRITICAL FIX #1: Stronger scene/background instructions
   if (sceneDescription?.trim()) {
-    prompt += `Set in this environment: ${sceneDescription.trim()}.
+    prompt += `⚠️ BACKGROUND CHANGE REQUIRED ⚠️
+IGNORE the background from image 1 completely.
+CREATE A NEW BACKGROUND: ${sceneDescription.trim()}
+
+Background Instructions:
+- The setting MUST be: ${sceneDescription.trim()}
+- Do NOT use any background elements from image 1
+- Create an entirely new environment as specified
+- The background is a fresh creation, not carried over from the product image
+- Only the product design comes from image 1, NOT the background
 
 `;
   } else {
-    prompt += `BACKGROUND: Choose an appropriate fashion photography background that complements both the model and the product. Use professional studio lighting or a lifestyle setting that matches the product's purpose.
+    prompt += `BACKGROUND:
+Create a professional studio or lifestyle background.
+Choose an appropriate setting that complements the product.
+Clean, modern, and commercially appropriate.
 
 `;
   }
 
-  // Technical requirements
-  prompt += `ESSENTIAL FASHION PHOTOGRAPHY STANDARDS:
-- Showcase texture, fabric weave, stitching, and material quality with crystal clarity.
-- For clothing: demonstrate natural drape, fit, and how garments fall on the body.
-- Ensure perfect color accuracy - colors must appear exactly as in real life for e-commerce.
-- Highlight fine details: stitching quality, zippers, buttons, patterns, embellishments.
-- Use professional fashion lighting: soft, even illumination that enhances textures.
-- DSLR-level sharpness with authentic material representation and natural shadows.
-- The model's face must be clearly visible and match the provided reference face exactly.
-- Ensure natural, professional posing that showcases both the model and the product effectively.
+  // CRITICAL FIX #2: Lighting integration and color matching
+  prompt += `🔴 LIGHTING & COLOR INTEGRATION - CRITICAL 🔴
+
+LIGHTING MUST BE UNIFIED:
+Problem to avoid: Dull face on bright image, or bright face on dark image.
+
+Solution:
+1. Analyze the overall brightness/mood of the scene
+2. Match the face lighting to the scene lighting exactly
+3. Face and environment must have the SAME lighting conditions
+
+Lighting Harmony Requirements:
+- If the scene is BRIGHT/sunny → Face must be BRIGHT with strong highlights
+- If the scene is DIM/moody → Face must be SOFTLY LIT with gentle shadows
+- If the scene is WARM-toned → Face must have WARM lighting (golden/orange cast)
+- If the scene is COOL-toned → Face must have COOL lighting (blue/neutral cast)
+- Face brightness must match background brightness within 10%
+
+Color Grading Unity:
+- Face skin tone should have the same color temperature as the environment
+- If environment is golden hour → Face gets warm golden glow
+- If environment is overcast → Face gets soft neutral lighting
+- If environment is neon/artificial → Face reflects those light colors
+- Overall color palette must be cohesive across face, product, and background
+
+Integration Techniques:
+- Light direction: Face lighting should match the scene's light source direction
+- Shadows: Face shadows should match scene shadow intensity
+- Highlights: Face highlights should match scene highlight brightness
+- Ambient fill: Face should receive appropriate fill light from environment
+- Color temperature: Face and scene must share the same kelvin temperature
+
+⚠️ VERIFICATION: "Does the face look like it was photographed in this exact environment?"
+If NO → Adjust face lighting to match the scene perfectly.
+
+`;
+
+  // Photography quality standards
+  prompt += `COMPOSITION & TECHNICAL:
+- Natural pose showing both face and product clearly
+- Face must be well-integrated into the scene (not "pasted on")
+- Professional DSLR quality with accurate colors
+- Sharp focus on both face and product details
+- Cohesive image where face, product, and background feel like one photograph
+
+Body Proportions:
+- Use fashion model body proportions (ideal for product display)
+- Body should be independent of face reference (copy face only, not body type)
 
 `;
 
