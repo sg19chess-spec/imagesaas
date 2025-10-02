@@ -1244,9 +1244,15 @@ function createPromptWithModel(productCategory, sceneDescription = null, priceOv
   }
   
   let prompt = `You are a world-class fashion photographer and commercial advertising designer.
-You have been provided with TWO images:
-1. FIRST IMAGE: The product - ${productCategory.trim()}
-2. SECOND IMAGE: A person's face that should be used as the model
+TWO IMAGES PROVIDED:
+1. Product: ${productCategory.trim()}
+2. Face reference (for model)
+
+🔴 CRITICAL INSTRUCTIONS:
+FACE: Copy ONLY the face from image 2 (eyes, nose, mouth, skin tone, hair) - 100% accuracy required
+BODY: Use fashion model body proportions (DO NOT copy body from face reference)
+PRODUCT: Exact design from image 1, worn/held by model with reference face
+FACE SWAP: If product shows a person, REPLACE their face. If mannequin, ADD face on model body.
 
 ABSOLUTE PRIORITY INSTRUCTION - READ THIS FIRST:
 - The face from the second image is a LOCKED TEMPLATE.
